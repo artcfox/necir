@@ -26,15 +26,38 @@ int main(void)
   setOutput(LED_DDR, LED_PIN);
   setHigh(LED_PORT, LED_PIN);
   
-  // Initialize the NEC IR interrupt
+  // Initialize the NEC IR library
   NECIR_Init();
   
   // Enable Global Interrupts
   sei();
 
+  uint32_t bits; // stores the decoded message
+
   for (;;) {
-    //setHigh(LED_INPUT, LED_PIN);
-    //_delay_ms(500);
+    // Process all queued NEC IR events
+    while (NECIR_HasEvent()) {
+      NECIR_GetNextEvent(&bits);
+
+      if (bits == 0xF708FB04)
+	setHigh(LED_INPUT, LED_PIN);
+      else if (bits == 0xFD02FB04)
+	for (uint8_t i = 0; i < 4; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(75);
+	}
+      else if (bits == 0xE51ABF00)
+	for (uint8_t i = 0; i < 6; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(75);
+	}
+      else if (bits == 0xFF00BF00)
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(75);
+	}
+
+    }
   }
 
   return 0;

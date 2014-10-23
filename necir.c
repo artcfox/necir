@@ -31,9 +31,27 @@
 */
 
 #include <avr/interrupt.h>
-#include <util/delay.h>
 
 #include "necir.h"
+
+#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
+#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
+#endif // NECIR_QUEUE_LENGTH
+
+volatile uint32_t queue[NECIR_QUEUE_LENGTH];
+volatile uint8_t head = 0;
+volatile uint8_t tail = 0;
+
+static inline uint8_t NECIR_full(void) __attribute__(( always_inline ));
+static inline uint8_t NECIR_full(void) {
+  return (head == (tail + 1) % NELEMS(queue));
+}
+
+static inline void NECIR_enqueue(uint32_t *message) __attribute__(( always_inline ));
+static inline void NECIR_enqueue(uint32_t *message) {
+  queue[tail] = *message;
+  tail = (tail + 1) % NELEMS(queue);
+}
 
 void NECIR_Init(void)
 {
@@ -143,23 +161,25 @@ ISR(TIMER2_COMPA_vect)
       ++bitCounter;
       if (bitCounter > 31) { // At this point 'bits' contains a 32-bit value representing the raw bits received
 	state = NECIR_STATE_WAITING_FOR_IDLE;
-	if (bits == 0xF708FB04)
-	  setHigh(LED_INPUT, LED_PIN);
-	else if (bits == 0xFD02FB04)
-	  for (uint8_t i = 0; i < 4; ++i) {
-	    setHigh(LED_INPUT, LED_PIN);
-	    _delay_ms(100);
-	  }
-	else if (bits == 0xE51ABF00)
-	  for (uint8_t i = 0; i < 6; ++i) {
-	    setHigh(LED_INPUT, LED_PIN);
-	    _delay_ms(100);
-	  }	  
-	else if (bits == 0xFF00BF00)
-	  for (uint8_t i = 0; i < 6; ++i) {
-	    setHigh(LED_INPUT, LED_PIN);
-	    _delay_ms(100);
-	  }
+	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
+	  NECIR_enqueue(&bits);
+	/* if (bits == 0xF708FB04) */
+	/*   setHigh(LED_INPUT, LED_PIN); */
+	/* else if (bits == 0xFD02FB04) */
+	/*   for (uint8_t i = 0; i < 4; ++i) { */
+	/*     setHigh(LED_INPUT, LED_PIN); */
+	/*     _delay_ms(100); */
+	/*   } */
+	/* else if (bits == 0xE51ABF00) */
+	/*   for (uint8_t i = 0; i < 6; ++i) { */
+	/*     setHigh(LED_INPUT, LED_PIN); */
+	/*     _delay_ms(100); */
+	/*   }	   */
+	/* else if (bits == 0xFF00BF00) */
+	/*   for (uint8_t i = 0; i < 6; ++i) { */
+	/*     setHigh(LED_INPUT, LED_PIN); */
+	/*     _delay_ms(100); */
+	/*   } */
       } else {
 	stateCounter = 0;
 	state = NECIR_STATE_BIT_LEADER;

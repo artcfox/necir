@@ -44,6 +44,27 @@
 #define outputState(port, pin) ((port) & (1 << (pin)))
 #define enablePullup(port, pin) ((port) |= (1 << (pin)))
 
+#define NELEMS(x) (sizeof(x)/sizeof(x[0]))
+
+#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
+#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
+#endif // NECIR_QUEUE_LENGTH
+
+extern volatile uint32_t queue[NECIR_QUEUE_LENGTH];
+extern volatile uint8_t head;
+extern volatile uint8_t tail;
+
+static inline uint8_t NECIR_HasEvent(void) __attribute__(( always_inline ));
+static inline uint8_t NECIR_HasEvent(void) {
+  return (head != tail);
+}
+
+static inline void NECIR_GetNextEvent(uint32_t *message) __attribute__(( always_inline ));
+static inline void NECIR_GetNextEvent(uint32_t *message) {
+  *message = queue[head];
+  head = (head + 1) % NELEMS(queue);
+}
+
 /* #if (F_CPU >= 16000000) */
 /* #define NECIR_CTC_TOP 15 */
 /* #elif (F_CPU >= 8000000) */

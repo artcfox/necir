@@ -306,6 +306,8 @@ APP_FLAG_SYNC = 3
 #  2 = 8-bit Timer/Counter2
 NECIR_ISR_CTC_TIMER = 0
 
+NECIR_QUEUE_LENGTH = 16
+
 # This defines which pin the IR receiver is connected to:
 IR_DDR = DDRD
 IR_PORT = PORTD
@@ -321,6 +323,7 @@ LED_PIN = PB1
 APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 	      -DAPP_FLAG_SYNC=$(APP_FLAG_SYNC) \
               -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
+              -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
               -DIR_DDR=$(IR_DDR) \
               -DIR_PORT=$(IR_PORT) \
               -DIR_INPUT=$(IR_INPUT) \
