@@ -348,7 +348,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 # Tune the lines below only if you know what you are doing:
 
 AVRDUDE    = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
+COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 #COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 
 LINK_FLAGS = -lc -lm

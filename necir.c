@@ -38,7 +38,7 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
 #endif // NECIR_QUEUE_LENGTH
 
-uint8_t bitLUT[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount
+const uint8_t bitLUT[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount
 
 volatile uint32_t queue[NECIR_QUEUE_LENGTH];
 volatile uint8_t head = 0;
