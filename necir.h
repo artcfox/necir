@@ -33,6 +33,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <avr/io.h>
 
 #define setInput(ddr, pin) ((ddr) &= ~(1 << (pin)))
@@ -50,18 +51,28 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
 #endif // NECIR_QUEUE_LENGTH
 
+extern uint8_t bitLUT[8]; // avoids having to bit shift by a variable amount
+
 extern volatile uint32_t queue[NECIR_QUEUE_LENGTH];
 extern volatile uint8_t head;
 extern volatile uint8_t tail;
+
+#if (NECIR_QUEUE_LENGTH % 8 == 0)
+#define NECIR_BIT_QUEUE_LENGTH (NECIR_QUEUE_LENGTH)
+#else
+#define NECIR_BIT_QUEUE_LENGTH (NECIR_QUEUE_LENGTH + 1)
+#endif // NECIR_QUEUE_LENGTH
+extern volatile uint8_t bitQueue[NECIR_BIT_QUEUE_LENGTH];
 
 static inline uint8_t NECIR_HasEvent(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_HasEvent(void) {
   return (head != tail);
 }
 
-static inline void NECIR_GetNextEvent(uint32_t *message) __attribute__(( always_inline ));
-static inline void NECIR_GetNextEvent(uint32_t *message) {
+static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) {
   *message = queue[head];
+  *isRepeat = bitQueue[head/8] & bitLUT[head%8];
   head = (head + 1) % NELEMS(queue);
 }
 

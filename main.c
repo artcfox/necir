@@ -37,13 +37,14 @@ int main(void)
   sei();
 
   uint32_t bits; // stores the decoded message
+  bool isRepeat; // whether the message is a repeat message or not
 
   for (;;) {
     // Process all queued NEC IR events
     while (NECIR_HasEvent()) {
-      NECIR_GetNextEvent(&bits);
+      NECIR_GetNextEvent(&bits, &isRepeat);
 
-      if (bits == 0xF708FB04)
+      if (bits == 0xF708FB04 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
       else if (bits == 0xFD02FB04)
 	for (uint8_t i = 0; i < 2; ++i) {

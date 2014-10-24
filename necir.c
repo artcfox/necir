@@ -38,18 +38,26 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
 #endif // NECIR_QUEUE_LENGTH
 
+uint8_t bitLUT[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount
+
 volatile uint32_t queue[NECIR_QUEUE_LENGTH];
 volatile uint8_t head = 0;
 volatile uint8_t tail = 0;
+
+volatile uint8_t bitQueue[NECIR_BIT_QUEUE_LENGTH];
 
 static inline uint8_t NECIR_full(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_full(void) {
   return (head == (tail + 1) % NELEMS(queue));
 }
 
-static inline void NECIR_enqueue(uint32_t *message) __attribute__(( always_inline ));
-static inline void NECIR_enqueue(uint32_t *message) {
+static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
   queue[tail] = *message;
+  if (isRepeat)
+    bitQueue[tail/8] |= bitLUT[tail%8];
+  else
+    bitQueue[tail/8] &= bitLUT[tail%8] ^ 0xFF;
   tail = (tail + 1) % NELEMS(queue);
 }
 
@@ -118,8 +126,7 @@ ISR(TIMER2_COMPA_vect)
     uint8_t byte[4];
   };
   static union Message bits;
-  static uint8_t bitLUT[] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount
-
+  
   uint8_t sample = getValue(IR_INPUT, IR_PIN);
 
   ++repeatCounter;
@@ -186,7 +193,7 @@ ISR(TIMER2_COMPA_vect)
 	      break;
 	    }
 	    if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	      NECIR_enqueue(&bits.value);
+	      NECIR_enqueue(&bits.value, true);
 	  }
 	}
       }
@@ -218,7 +225,7 @@ ISR(TIMER2_COMPA_vect)
       if (++bitCounter > 31) { // At this point 'bits' contains a 32-bit value representing the raw bits received
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	  NECIR_enqueue(&bits.value);
+	  NECIR_enqueue(&bits.value, false);
 	repeatCounter = nativeRepeatsSeen = turboModeCounter = 0; // initialize repeat counters
 	nativeRepeatsNeeded = 6; // set "delay until repeat" length
       } else {
