@@ -26,6 +26,10 @@ int main(void)
   setOutput(LED_DDR, LED_PIN);
   setHigh(LED_PORT, LED_PIN);
   
+  // Set diagnostic probe pin as output and set it low
+  setOutput(PROBE_DDR, PROBE_PIN);
+  setLow(PROBE_PORT, PROBE_PIN);
+
   // Initialize the NEC IR library
   NECIR_Init();
   
@@ -42,19 +46,19 @@ int main(void)
       if (bits == 0xF708FB04)
 	setHigh(LED_INPUT, LED_PIN);
       else if (bits == 0xFD02FB04)
-	for (uint8_t i = 0; i < 4; ++i) {
+	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(75);
+	  _delay_ms(12.5);
 	}
       else if (bits == 0xE51ABF00)
 	for (uint8_t i = 0; i < 6; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(75);
+	  _delay_ms(12.5);
 	}
       else if (bits == 0xFF00BF00)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(75);
+	  _delay_ms(12.5);
 	}
 
     }

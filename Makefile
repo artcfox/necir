@@ -34,10 +34,10 @@ OBJECTS    = main.o necir.o
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
 
 # Remove clock divider
-FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe2:m
+#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe2:m
 
 # Remove clock divider, enable clock output
-#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
+FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
 
 # Remove clock divider, set external crystal
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe6:m
@@ -320,6 +320,12 @@ LED_PORT = PORTB
 LED_INPUT = PINB
 LED_PIN = PB1
 
+# This defines which pins the diagnostic probe is connected to:
+PROBE_DDR = DDRD
+PROBE_PORT = PORTD
+PROBE_INPUT = PIND
+PROBE_PIN = PD7
+
 APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 	      -DAPP_FLAG_SYNC=$(APP_FLAG_SYNC) \
               -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
@@ -331,7 +337,11 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
               -DLED_DDR=$(LED_DDR) \
               -DLED_PORT=$(LED_PORT) \
               -DLED_INPUT=$(LED_INPUT) \
-              -DLED_PIN=$(LED_PIN)
+              -DLED_PIN=$(LED_PIN) \
+              -DPROBE_DDR=$(PROBE_DDR) \
+              -DPROBE_PORT=$(PROBE_PORT) \
+              -DPROBE_INPUT=$(PROBE_INPUT) \
+              -DPROBE_PIN=$(PROBE_PIN)
 
 # ---------- End App Configuration Section ----------
 
