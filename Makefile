@@ -19,8 +19,8 @@ DEVICE     = atmega328p
 #CLOCK      = 20000000
 #CLOCK      = 18432000
 #CLOCK      = 16000000
-#CLOCK      = 8000000
-CLOCK      = 1000000
+CLOCK      = 8000000
+#CLOCK      = 1000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o necir.o
 
@@ -31,13 +31,13 @@ OBJECTS    = main.o necir.o
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x62:m
 
 # Enable clock output
-FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
+#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
 
 # Remove clock divider
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe2:m
 
 # Remove clock divider, enable clock output
-#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
+FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
 
 # Remove clock divider, set external crystal
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe6:m
@@ -322,7 +322,7 @@ NECIR_SUPPORT_EXTENDED_PROTOCOL = 0
 
 NECIR_DELAY_UNTIL_REPEAT = 6
 
-NECIR_REPEAT_INTERVAL = 3
+NECIR_REPEAT_INTERVAL = 2
 
 NECIR_ENABLE_TURBO_MODE = 1
 
@@ -334,7 +334,7 @@ NECIR_ENABLE_TURBO_MODE = 1
 #       equivalent to waiting 256 intervals (probably not what you
 #       want). This option is ignored if NECIR_ENABLE_TURBO_MODE = 0
 NECIR_TURBO_MODE_AFTER = 10
-NECIR_TURBO_REPEAT_INTERVAL = 2
+NECIR_TURBO_REPEAT_INTERVAL = 1
 
 # This defines which pin the IR receiver is connected to:
 IR_DDR = DDRD
