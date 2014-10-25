@@ -38,7 +38,7 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
 #endif // NECIR_QUEUE_LENGTH
 
-const uint8_t oneLeftShift[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
+const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
 volatile uint32_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 volatile uint8_t NECIR_head = 0;
@@ -55,9 +55,9 @@ static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
   NECIR_messageQueue[NECIR_tail] = *message;
   if (isRepeat)
-    NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShift[NECIR_tail%8];
+    NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShiftedBy[NECIR_tail%8];
   else
-    NECIR_repeatFlagQueue[NECIR_tail/8] &= oneLeftShift[NECIR_tail%8] ^ 0xFF;
+    NECIR_repeatFlagQueue[NECIR_tail/8] &= oneLeftShiftedBy[NECIR_tail%8] ^ 0xFF;
   NECIR_tail = (NECIR_tail + 1) % NELEMS(NECIR_messageQueue);
 }
 
@@ -194,7 +194,7 @@ ISR(TIMER2_COMPA_vect)
 	    case NECIR_REPEAT_INTERVAL:
 	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to decrease the repeat interval even further?
 		//		turboModeCounter = 0;
-		nativeRepeatsNeeded = 1;
+		nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL;
 	      }
 	      break;
 #endif // NECIR_ENABLE_TURBO_MODE
@@ -228,7 +228,7 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) // was high for longer than a 0-bit, so it's a 1-bit
-	message.byte[bitCounter/8] |= oneLeftShift[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
+	message.byte[bitCounter/8] |= oneLeftShiftedBy[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
       if (++bitCounter > 31) { // At this point 'message' contains a 32-bit value representing the raw bits received
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message

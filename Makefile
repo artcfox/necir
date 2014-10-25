@@ -300,8 +300,8 @@ TLC5940_DEFINES = -DTLC5940_N=$(TLC5940_N) \
 APP_FLAG_SYNC = 3
 
 # Defines which 8-bit Timer is used to generate the interrupt that
-# fires every 4096 clock cycles. Useful if you are already using a
-# timer for something else.
+# fires every ((uint8_t)(F_CPU/1000000))*256 clock cycles. Useful if
+# you are already using a timer for something else.
 #  0 = 8-bit Timer/Counter0
 #  2 = 8-bit Timer/Counter2
 NECIR_ISR_CTC_TIMER = 0
@@ -332,6 +332,7 @@ NECIR_ENABLE_TURBO_MODE = 1
 #       equivalent to waiting 256 intervals (probably not what you
 #       want). This option is ignored if NECIR_ENABLE_TURBO_MODE = 0
 NECIR_TURBO_MODE_AFTER = 10
+NECIR_TURBO_REPEAT_INTERVAL = 2
 
 # This defines which pin the IR receiver is connected to:
 IR_DDR = DDRD
@@ -359,6 +360,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
               -DNECIR_REPEAT_INTERVAL=$(NECIR_REPEAT_INTERVAL) \
               -DNECIR_ENABLE_TURBO_MODE=$(NECIR_ENABLE_TURBO_MODE) \
               -DNECIR_TURBO_MODE_AFTER=$(NECIR_TURBO_MODE_AFTER) \
+              -DNECIR_TURBO_REPEAT_INTERVAL=$(NECIR_TURBO_REPEAT_INTERVAL) \
               -DIR_DDR=$(IR_DDR) \
               -DIR_PORT=$(IR_PORT) \
               -DIR_INPUT=$(IR_INPUT) \
@@ -377,7 +379,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 # Tune the lines below only if you know what you are doing:
 
 AVRDUDE    = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
+COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -mstrict-X -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 #COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 
 LINK_FLAGS = -lc -lm
