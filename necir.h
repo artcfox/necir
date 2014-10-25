@@ -51,44 +51,31 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
 #endif // NECIR_QUEUE_LENGTH
 
-extern const uint8_t bitLUT[8]; // avoids having to bit shift by a variable amount
+extern const uint8_t oneLeftShift[8]; // avoids having to bit shift by a variable amount
 
-extern volatile uint32_t queue[NECIR_QUEUE_LENGTH];
-extern volatile uint8_t head;
-extern volatile uint8_t tail;
+extern volatile uint32_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
+extern volatile uint8_t NECIR_head;
+extern volatile uint8_t NECIR_tail;
 
-#if (NECIR_QUEUE_LENGTH % 8 == 0)
-#define NECIR_BIT_QUEUE_LENGTH (NECIR_QUEUE_LENGTH)
+#if ((NECIR_QUEUE_LENGTH) % 8 == 0)
+#define NECIR_REPEAT_QUEUE_BYTES ((NECIR_QUEUE_LENGTH) / 8)
 #else
-#define NECIR_BIT_QUEUE_LENGTH (NECIR_QUEUE_LENGTH + 1)
+#define NECIR_REPEAT_QUEUE_BYTES ((NECIR_QUEUE_LENGTH) / 8 + 1)
 #endif // NECIR_QUEUE_LENGTH
-extern volatile uint8_t bitQueue[NECIR_BIT_QUEUE_LENGTH];
+extern volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 
 static inline uint8_t NECIR_HasEvent(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_HasEvent(void) {
-  return (head != tail);
+  return (NECIR_head != NECIR_tail);
 }
 
 static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) {
-  *message = queue[head];
-  *isRepeat = bitQueue[head/8] & bitLUT[head%8];
-  head = (head + 1) % NELEMS(queue);
+  *message = NECIR_messageQueue[NECIR_head];
+  *isRepeat = NECIR_repeatFlagQueue[NECIR_head/8] & oneLeftShift[NECIR_head%8];
+  NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);
 }
 
-/* #if (F_CPU >= 16000000) */
-/* #define NECIR_CTC_TOP 15 */
-/* #elif (F_CPU >= 8000000) */
-/* #define NECIR_CTC_TOP 7 */
-/* #elif (F_CPU >= 4000000) */
-/* #define NECIR_CTC_TOP 3 */
-/* #elif (F_CPU >= 2000000) */
-/* #define NECIR_CTC_TOP 1 */
-/* #elif (F_CPU >= 1000000) */
-/* #define NECIR_CTC_TOP 0 */
-/* #else */
-/* #error "NECIR: F_CPU must be at least 1000000" */
-/* #endif */
-#define NECIR_CTC_TOP ((uint8_t)((F_CPU/1000000)-1))
+#define NECIR_CTC_TOP ((uint8_t)((F_CPU/1000000)-1)) // auto-calculate timer interval based on F_CPU
 
 void NECIR_Init(void);

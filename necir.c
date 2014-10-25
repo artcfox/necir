@@ -35,30 +35,30 @@
 #include "necir.h"
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
-#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
+#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
 #endif // NECIR_QUEUE_LENGTH
 
-const uint8_t bitLUT[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount
+const uint8_t oneLeftShift[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
-volatile uint32_t queue[NECIR_QUEUE_LENGTH];
-volatile uint8_t head = 0;
-volatile uint8_t tail = 0;
+volatile uint32_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
+volatile uint8_t NECIR_head = 0;
+volatile uint8_t NECIR_tail = 0;
 
-volatile uint8_t bitQueue[NECIR_BIT_QUEUE_LENGTH];
+volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 
 static inline uint8_t NECIR_full(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_full(void) {
-  return (head == (tail + 1) % NELEMS(queue));
+  return (NECIR_head == (NECIR_tail + 1) % NELEMS(NECIR_messageQueue));
 }
 
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
-  queue[tail] = *message;
+  NECIR_messageQueue[NECIR_tail] = *message;
   if (isRepeat)
-    bitQueue[tail/8] |= bitLUT[tail%8];
+    NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShift[NECIR_tail%8];
   else
-    bitQueue[tail/8] &= bitLUT[tail%8] ^ 0xFF;
-  tail = (tail + 1) % NELEMS(queue);
+    NECIR_repeatFlagQueue[NECIR_tail/8] &= oneLeftShift[NECIR_tail%8] ^ 0xFF;
+  NECIR_tail = (NECIR_tail + 1) % NELEMS(NECIR_messageQueue);
 }
 
 void NECIR_Init(void)
@@ -88,7 +88,7 @@ void NECIR_Init(void)
 #endif // NECIR_ISR_CTC_TIMER
 }
 
-// This interrupt will get called every (NEC_CTC_TOP + 1)*256 clock cycles
+// This interrupt will get called every (NECIR_CTC_TOP + 1)*256 clock cycles
 #if (NECIR_ISR_CTC_TIMER == 0)
 ISR(TIMER0_COMPA_vect)
 #elif (NECIR_ISR_CTC_TIMER == 2)
@@ -117,10 +117,9 @@ ISR(TIMER2_COMPA_vect)
     16-bit variable.
   */
   static uint16_t repeatCounter; // zeroed after 32-bits have been received, and every time a repeat code has been seen
-  static uint8_t nativeRepeatsSeen; // counts the number of native repeat messages seen, because they come so fast we may skip some
+  static uint8_t nativeRepeatsSeen; // counts the number of native repeat messages seen, because the repeats we issue will be a multiple of this number
   static uint8_t nativeRepeatsNeeded; // when nativeRepeatsSeen counts up to this value, then we actually issue a repeat
   static uint8_t turboModeCounter;
-  //static uint32_t bits;
   union Message {
     uint32_t value;
     uint8_t byte[4];
@@ -221,7 +220,7 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) // was high for longer than a 0-bit, so it's a 1-bit
-	bits.byte[bitCounter/8] |= bitLUT[bitCounter%8]; // does the same thing as "bits.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
+	bits.byte[bitCounter/8] |= oneLeftShift[bitCounter%8]; // does the same thing as "bits.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
       if (++bitCounter > 31) { // At this point 'bits' contains a 32-bit value representing the raw bits received
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
