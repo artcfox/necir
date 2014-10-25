@@ -111,7 +111,12 @@ ISR(TIMER2_COMPA_vect)
 #endif // NECIR_ISR_CTC_TIMER
 {
   setHigh(PROBE_INPUT, PROBE_PIN);
-  static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE, NECIR_STATE_LEADER, NECIR_STATE_PAUSE, NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE } state;
+
+  static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE,
+		NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
+		NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE,
+		NECIR_STATE_PROCESS, NECIR_STATE_REPEAT_PROCESS } state;
+
   static uint8_t stateCounter; // stores the number of times we have sampled the state minus one
   static uint8_t bitCounter; // keeps track of how many bits we've currently decoded
 
@@ -181,7 +186,6 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (repeatCounter <= (uint16_t)(110.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // make sure the repeat code came within 110ms of the last message
 	  repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
-
 	  /*
 	    To implement "delay until repeat" behavior, we need to
 	    have seen a certain number of native repeat messages
@@ -189,7 +193,6 @@ ISR(TIMER2_COMPA_vect)
 	  */
 	  if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen the proper number of native repeat messages? 
 	    nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
-
 	    /*
 	      After we've met the condition for "delay until repeat"
 	      behavior, decrease the nativeRepeatsNeeded variable to
@@ -201,19 +204,21 @@ ISR(TIMER2_COMPA_vect)
 	      break;
 #if (NECIR_ENABLE_TURBO_MODE)
 	    case NECIR_REPEAT_INTERVAL:
-	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to decrease the repeat interval even further?
-		//		turboModeCounter = 0;
+	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) // have we repeated enough to decrease the repeat interval even further?
 		nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL;
-	      }
 	      break;
 #endif // NECIR_ENABLE_TURBO_MODE
 	    }
-	    if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	      NECIR_enqueue(&message.value, true);
+	    state = NECIR_STATE_REPEAT_PROCESS;
 	  }
 	}
       }
     }
+    break;
+  case NECIR_STATE_REPEAT_PROCESS:
+    state = NECIR_STATE_WAITING_FOR_IDLE;
+    if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
+      NECIR_enqueue(&message.value, true);
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     if (!sample) { // if low now, make sure it hasn't been low for too long
@@ -238,10 +243,8 @@ ISR(TIMER2_COMPA_vect)
 	break;
       } else if (stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) // was high for longer than a 0-bit, so it's a 1-bit
 	message.byte[bitCounter/8] |= oneLeftShiftedBy[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
-      if (++bitCounter > 31) { // At this point 'message' contains a 32-bit value representing the raw bits received
-	state = NECIR_STATE_WAITING_FOR_IDLE;
-	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	  NECIR_enqueue(&message.value, false);
+      if (++bitCounter > 31) {
+	state = NECIR_STATE_PROCESS;
 	nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_ENABLE_TURBO_MODE)
 	turboModeCounter = 0;
@@ -252,6 +255,11 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_BIT_LEADER;
       }
     }
+    break;
+  case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
+    state = NECIR_STATE_WAITING_FOR_IDLE;
+    if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
+      NECIR_enqueue(&message.value, false);
     break;
   }
   setHigh(PROBE_INPUT, PROBE_PIN);
