@@ -318,6 +318,8 @@ NECIR_ISR_CTC_TIMER = 0
 #       are strongly preferred.
 NECIR_QUEUE_LENGTH = 16
 
+NECIR_SUPPORT_EXTENDED_PROTOCOL = 0
+
 NECIR_DELAY_UNTIL_REPEAT = 6
 
 NECIR_REPEAT_INTERVAL = 3
@@ -356,6 +358,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 	      -DAPP_FLAG_SYNC=$(APP_FLAG_SYNC) \
               -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
               -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
+              -DNECIR_SUPPORT_EXTENDED_PROTOCOL=$(NECIR_SUPPORT_EXTENDED_PROTOCOL) \
               -DNECIR_DELAY_UNTIL_REPEAT=$(NECIR_DELAY_UNTIL_REPEAT) \
               -DNECIR_REPEAT_INTERVAL=$(NECIR_REPEAT_INTERVAL) \
               -DNECIR_ENABLE_TURBO_MODE=$(NECIR_ENABLE_TURBO_MODE) \
@@ -379,7 +382,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 # Tune the lines below only if you know what you are doing:
 
 AVRDUDE    = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -mstrict-X -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
+COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 #COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 
 LINK_FLAGS = -lc -lm

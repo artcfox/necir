@@ -53,7 +53,13 @@
 
 extern const uint8_t oneLeftShiftedBy[8]; // avoids having to bit shift by a variable amount
 
-extern volatile uint32_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
+#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
+#define necir_message_t uint32_t
+#else
+#define necir_message_t uint16_t
+#endif
+
+extern volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 extern volatile uint8_t NECIR_head;
 extern volatile uint8_t NECIR_tail;
 
@@ -69,8 +75,8 @@ static inline uint8_t NECIR_HasEvent(void) {
   return (NECIR_head != NECIR_tail);
 }
 
-static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) __attribute__(( always_inline ));
-static inline void NECIR_GetNextEvent(uint32_t *message, bool *isRepeat) {
+static inline void NECIR_GetNextEvent(necir_message_t *message, bool *isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_GetNextEvent(necir_message_t *message, bool *isRepeat) {
   *message = NECIR_messageQueue[NECIR_head];
   *isRepeat = NECIR_repeatFlagQueue[NECIR_head/8] & oneLeftShiftedBy[NECIR_head%8];
   NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);

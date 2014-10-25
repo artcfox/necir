@@ -38,9 +38,14 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
 #endif // NECIR_QUEUE_LENGTH
 
+union Message {
+  uint32_t value;
+  uint8_t byte[4];
+};
+
 const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
-volatile uint32_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
+volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 volatile uint8_t NECIR_head = 0;
 volatile uint8_t NECIR_tail = 0;
 
@@ -53,7 +58,15 @@ static inline uint8_t NECIR_full(void) {
 
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
+#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
   NECIR_messageQueue[NECIR_tail] = *message;
+#else // NECIR_SUPPORT_EXTENDED_PROTOCOL
+  union Message *msg = (union Message*)message;
+  if (msg->byte[0] == (msg->byte[1] ^ 0xFF) && msg->byte[2] == (msg->byte[3] ^ 0xFF))
+    NECIR_messageQueue[NECIR_tail] = ((uint16_t)msg->byte[0] << 8) | msg->byte[2];
+  else
+    return; // validation failed, drop the message
+#endif // NECIR_SUPPORT_EXTENDED_PROTOCOL
   if (isRepeat)
     NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShiftedBy[NECIR_tail%8];
   else
@@ -124,10 +137,6 @@ ISR(TIMER2_COMPA_vect)
   static uint8_t turboModeCounter;
 #endif // NECIR_ENABLE_TURBO_MODE
 
-  union Message {
-    uint32_t value;
-    uint8_t byte[4];
-  };
   static union Message message;
   
   uint8_t sample = getValue(IR_INPUT, IR_PIN);

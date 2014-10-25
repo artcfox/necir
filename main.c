@@ -36,7 +36,7 @@ int main(void)
   // Enable Global Interrupts
   sei();
 
-  uint32_t message; // stores the decoded message
+  necir_message_t message; // stores the decoded message
   bool isRepeat; // whether the message is a repeat message or not
 
   for (;;) {
@@ -44,6 +44,7 @@ int main(void)
     while (NECIR_HasEvent()) {
       NECIR_GetNextEvent(&message, &isRepeat);
 
+#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
       if (message == 0xF708FB04 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
       else if (message == 0xFD02FB04)
@@ -61,7 +62,25 @@ int main(void)
 	  setHigh(LED_INPUT, LED_PIN);
 	  _delay_ms(25);
 	}
-
+#else // NECIR_SUPPORT_EXTENDED_PROTOCOL
+      if (message == 0x0408 && !isRepeat) // disallow repeat for power button
+	setHigh(LED_INPUT, LED_PIN);
+      else if (message == 0x0402)
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(25);
+	}
+      else if (message == 0x001A)
+	for (uint8_t i = 0; i < 6; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(25);
+	}
+      else if (message == 0x0000)
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(25);
+	}
+#endif // NECIR_SUPPORT_EXTENDED_PROTOCOL
     }
   }
 
