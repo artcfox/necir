@@ -19,8 +19,8 @@ DEVICE     = atmega328p
 #CLOCK      = 20000000
 #CLOCK      = 18432000
 #CLOCK      = 16000000
-CLOCK      = 8000000
-#CLOCK      = 1000000
+#CLOCK      = 8000000
+CLOCK      = 1000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o necir.o
 
@@ -31,13 +31,13 @@ OBJECTS    = main.o necir.o
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x62:m
 
 # Enable clock output
-#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
+FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
 
 # Remove clock divider
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe2:m
 
 # Remove clock divider, enable clock output
-FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
+#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
 
 # Remove clock divider, set external crystal
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe6:m
@@ -306,7 +306,32 @@ APP_FLAG_SYNC = 3
 #  2 = 8-bit Timer/Counter2
 NECIR_ISR_CTC_TIMER = 0
 
+# NEC IR messages are decoded in real-time by the interrupt routine,
+# and are placed into a queue where the main() routine can fetch them.
+# NECIR_QUEUE_LENGTH defines the length of this queue, and thus the
+# number of messages that can be received, but not yet processed by
+# the main() routine at any given time. If new messages arrive while
+# main() is blocked, as long this queue isn't full, those messages
+# will not be lost.
+#
+# Note: NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two
+#       are strongly preferred.
 NECIR_QUEUE_LENGTH = 16
+
+NECIR_DELAY_UNTIL_REPEAT = 6
+
+NECIR_REPEAT_INTERVAL = 3
+
+NECIR_ENABLE_TURBO_MODE = 1
+
+# Defines how many repeats at the NECIR_REPEAT_INTERVAL must be seen
+# before the repeats occur at an unscaled rate (as fast as the remote
+# is actually sending them).
+#
+# Note: This must be an integer between 0 and 255, with 0 being
+#       equivalent to waiting 256 intervals (probably not what you
+#       want). This option is ignored if NECIR_ENABLE_TURBO_MODE = 0
+NECIR_TURBO_MODE_AFTER = 10
 
 # This defines which pin the IR receiver is connected to:
 IR_DDR = DDRD
@@ -330,6 +355,10 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 	      -DAPP_FLAG_SYNC=$(APP_FLAG_SYNC) \
               -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
               -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
+              -DNECIR_DELAY_UNTIL_REPEAT=$(NECIR_DELAY_UNTIL_REPEAT) \
+              -DNECIR_REPEAT_INTERVAL=$(NECIR_REPEAT_INTERVAL) \
+              -DNECIR_ENABLE_TURBO_MODE=$(NECIR_ENABLE_TURBO_MODE) \
+              -DNECIR_TURBO_MODE_AFTER=$(NECIR_TURBO_MODE_AFTER) \
               -DIR_DDR=$(IR_DDR) \
               -DIR_PORT=$(IR_PORT) \
               -DIR_INPUT=$(IR_INPUT) \

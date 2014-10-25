@@ -36,30 +36,30 @@ int main(void)
   // Enable Global Interrupts
   sei();
 
-  uint32_t bits; // stores the decoded message
+  uint32_t message; // stores the decoded message
   bool isRepeat; // whether the message is a repeat message or not
 
   for (;;) {
     // Process all queued NEC IR events
     while (NECIR_HasEvent()) {
-      NECIR_GetNextEvent(&bits, &isRepeat);
+      NECIR_GetNextEvent(&message, &isRepeat);
 
-      if (bits == 0xF708FB04 && !isRepeat) // disallow repeat for power button
+      if (message == 0xF708FB04 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
-      else if (bits == 0xFD02FB04)
+      else if (message == 0xFD02FB04)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(12.5);
+	  _delay_ms(25);
 	}
-      else if (bits == 0xE51ABF00)
+      else if (message == 0xE51ABF00)
 	for (uint8_t i = 0; i < 6; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(12.5);
+	  _delay_ms(25);
 	}
-      else if (bits == 0xFF00BF00)
+      else if (message == 0xFF00BF00)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(12.5);
+	  _delay_ms(25);
 	}
 
     }

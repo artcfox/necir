@@ -119,12 +119,16 @@ ISR(TIMER2_COMPA_vect)
   static uint16_t repeatCounter; // zeroed after 32-bits have been received, and every time a repeat code has been seen
   static uint8_t nativeRepeatsSeen; // counts the number of native repeat messages seen, because the repeats we issue will be a multiple of this number
   static uint8_t nativeRepeatsNeeded; // when nativeRepeatsSeen counts up to this value, then we actually issue a repeat
+
+#if (NECIR_ENABLE_TURBO_MODE)
   static uint8_t turboModeCounter;
+#endif // NECIR_ENABLE_TURBO_MODE
+
   union Message {
     uint32_t value;
     uint8_t byte[4];
   };
-  static union Message bits;
+  static union Message message;
   
   uint8_t sample = getValue(IR_INPUT, IR_PIN);
 
@@ -162,11 +166,11 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)(2.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // was high for longer than a repeat code, so switch to bit leader state
-	stateCounter = bitCounter = bits.value = 0;
+	repeatCounter = stateCounter = bitCounter = message.value = 0;
 	state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
 	state = NECIR_STATE_WAITING_FOR_IDLE;
-	if (repeatCounter <= (uint16_t)(110/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // make sure the repeat code came within 110ms of the last message
+	if (repeatCounter <= (uint16_t)(110.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // make sure the repeat code came within 110ms of the last message
 	  repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
 
 	  /*
@@ -183,16 +187,20 @@ ISR(TIMER2_COMPA_vect)
 	      implement "repeat interval" behavior.
 	    */
 	    switch (nativeRepeatsNeeded) {
-	    case 6:
-	      nativeRepeatsNeeded = 2; // set the initial repeat interval
+	    case NECIR_DELAY_UNTIL_REPEAT:
+	      nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // set the initial repeat interval
 	      break;
-	    case 2:
-	      if (++turboModeCounter == 10) // have we repeated enough to decrease the repeat interval even further?
+#if (NECIR_ENABLE_TURBO_MODE)
+	    case NECIR_REPEAT_INTERVAL:
+	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to decrease the repeat interval even further?
+		//		turboModeCounter = 0;
 		nativeRepeatsNeeded = 1;
+	      }
 	      break;
+#endif // NECIR_ENABLE_TURBO_MODE
 	    }
 	    if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	      NECIR_enqueue(&bits.value, true);
+	      NECIR_enqueue(&message.value, true);
 	  }
 	}
       }
@@ -220,13 +228,16 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) // was high for longer than a 0-bit, so it's a 1-bit
-	bits.byte[bitCounter/8] |= oneLeftShift[bitCounter%8]; // does the same thing as "bits.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
-      if (++bitCounter > 31) { // At this point 'bits' contains a 32-bit value representing the raw bits received
+	message.byte[bitCounter/8] |= oneLeftShift[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
+      if (++bitCounter > 31) { // At this point 'message' contains a 32-bit value representing the raw bits received
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-	  NECIR_enqueue(&bits.value, false);
-	repeatCounter = nativeRepeatsSeen = turboModeCounter = 0; // initialize repeat counters
-	nativeRepeatsNeeded = 6; // set "delay until repeat" length
+	  NECIR_enqueue(&message.value, false);
+	nativeRepeatsSeen = 0; // initialize repeat counters
+#if (NECIR_ENABLE_TURBO_MODE)
+	turboModeCounter = 0;
+#endif // NECIR_ENABLE_TURBO_MODE
+	nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
       } else {
 	stateCounter = 0;
 	state = NECIR_STATE_BIT_LEADER;
