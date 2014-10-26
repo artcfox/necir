@@ -82,6 +82,6 @@ static inline void NECIR_GetNextEvent(necir_message_t *message, bool *isRepeat) 
   NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);
 }
 
-#define NECIR_CTC_TOP ((uint8_t)((F_CPU/1000000)-1)) // auto-calculate timer interval based on F_CPU
+#define NECIR_CTC_TOP ((uint8_t)(F_CPU/1000000)-1) // auto-calculate timer interval based on F_CPU
 
 void NECIR_Init(void);
