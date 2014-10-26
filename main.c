@@ -44,8 +44,8 @@ int main(void)
     /* while (1) setHigh(PROBE_INPUT, PROBE_PIN); */
 
     // Process all queued NEC IR events
-    while (NECIR_HasEvent()) {
-      NECIR_GetNextEvent(&message, &isRepeat);
+    while (NECIR_HasMessage()) {
+      NECIR_GetNextMessage(&message, &isRepeat);
 
 #if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
       if (message == 0xF708FB04 && !isRepeat) // disallow repeat for power button
@@ -53,22 +53,42 @@ int main(void)
       else if (message == 0xFD02FB04)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(25);
+	  _delay_ms(50);
 	}
       else if (message == 0xE51ABF00)
 	for (uint8_t i = 0; i < 6; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(25);
+	  _delay_ms(50);
 	}
       else if (message == 0xFF00BF00)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(25);
+	  _delay_ms(50);
 	}
 #else // NECIR_SUPPORT_EXTENDED_PROTOCOL
+      /* for (uint16_t i = 0; i < ((uint8_t)message << 1); ++i) { */
+      /* 	setHigh(LED_INPUT, LED_PIN); */
+      /* 	_delay_ms(200); */
+      /* } */
+      /* continue; */
       if (message == 0x0408 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
-      else if (message == 0x0402)
+      else if (message == 0x0402) // VOL_UP
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(37.5);
+	}
+      else if (message == 0x0403) // VOL_DN
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(50);
+	}
+      else if (message == 0x0400) // CH_UP
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(12.5);
+	}
+      else if (message == 0x0401) // CH_DN
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
 	  _delay_ms(25);
@@ -76,12 +96,12 @@ int main(void)
       else if (message == 0x001A)
 	for (uint8_t i = 0; i < 6; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(25);
+	  _delay_ms(50);
 	}
       else if (message == 0x0000)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(25);
+	  _delay_ms(50);
 	}
 #endif // NECIR_SUPPORT_EXTENDED_PROTOCOL
     }

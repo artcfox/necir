@@ -336,7 +336,7 @@ NECIR_USE_EXTENDED_PROTOCOL = 0
 # NECIR_REPEAT_INTERVAL * 108ms
 #
 NECIR_DELAY_UNTIL_REPEAT = 6
-NECIR_REPEAT_INTERVAL = 2
+NECIR_REPEAT_INTERVAL = 3
 
 # Defines how many repeats at the NECIR_REPEAT_INTERVAL interval must
 # occur before the repeat interval is changed to

@@ -70,13 +70,13 @@ extern volatile uint8_t NECIR_tail;
 #endif // NECIR_QUEUE_LENGTH
 extern volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 
-static inline uint8_t NECIR_HasEvent(void) __attribute__(( always_inline ));
-static inline uint8_t NECIR_HasEvent(void) {
+static inline uint8_t NECIR_HasMessage(void) __attribute__(( always_inline ));
+static inline uint8_t NECIR_HasMessage(void) {
   return (NECIR_head != NECIR_tail);
 }
 
-static inline void NECIR_GetNextEvent(necir_message_t *message, bool *isRepeat) __attribute__(( always_inline ));
-static inline void NECIR_GetNextEvent(necir_message_t *message, bool *isRepeat) {
+static inline void NECIR_GetNextMessage(necir_message_t *message, bool *isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_GetNextMessage(necir_message_t *message, bool *isRepeat) {
   *message = NECIR_messageQueue[NECIR_head];
   *isRepeat = NECIR_repeatFlagQueue[NECIR_head/8] & oneLeftShiftedBy[NECIR_head%8];
   NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);
