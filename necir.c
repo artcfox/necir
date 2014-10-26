@@ -58,15 +58,15 @@ static inline uint8_t NECIR_full(void) {
 
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
-#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
+#if (NECIR_USE_EXTENDED_PROTOCOL)
   NECIR_messageQueue[NECIR_tail] = *message;
-#else // NECIR_SUPPORT_EXTENDED_PROTOCOL
+#else // NECIR_USE_EXTENDED_PROTOCOL
   union Message *msg = (union Message*)message;
   if (msg->byte[0] == (msg->byte[1] ^ 0xFF) && msg->byte[2] == (msg->byte[3] ^ 0xFF))
     NECIR_messageQueue[NECIR_tail] = ((uint16_t)msg->byte[0] << 8) | msg->byte[2];
   else
     return; // validation failed, drop the message
-#endif // NECIR_SUPPORT_EXTENDED_PROTOCOL
+#endif // NECIR_USE_EXTENDED_PROTOCOL
   if (isRepeat)
     NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShiftedBy[NECIR_tail%8];
   else
@@ -138,9 +138,9 @@ ISR(TIMER2_COMPA_vect)
   static uint8_t nativeRepeatsSeen; // counts the number of native repeat messages seen, because the repeats we issue will be a multiple of this number
   static uint8_t nativeRepeatsNeeded; // when nativeRepeatsSeen counts up to this value, then we actually issue a repeat
 
-#if (NECIR_ENABLE_TURBO_MODE)
+#if (NECIR_TURBO_MODE_AFTER != 0)
   static uint8_t turboModeCounter;
-#endif // NECIR_ENABLE_TURBO_MODE
+#endif // NECIR_TURBO_MODE_AFTER != 0
 
   static union Message message;
   
@@ -202,12 +202,12 @@ ISR(TIMER2_COMPA_vect)
 	    case NECIR_DELAY_UNTIL_REPEAT:
 	      nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // set the initial repeat interval
 	      break;
-#if (NECIR_ENABLE_TURBO_MODE)
+#if (NECIR_TURBO_MODE_AFTER != 0)
 	    case NECIR_REPEAT_INTERVAL:
 	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) // have we repeated enough to decrease the repeat interval even further?
 		nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL;
 	      break;
-#endif // NECIR_ENABLE_TURBO_MODE
+#endif // NECIR_TURBO_MODE_AFTER != 0
 	    }
 	    state = NECIR_STATE_REPEAT_PROCESS;
 	  }
@@ -246,9 +246,9 @@ ISR(TIMER2_COMPA_vect)
       if (++bitCounter > 31) {
 	state = NECIR_STATE_PROCESS;
 	nativeRepeatsSeen = 0; // initialize repeat counters
-#if (NECIR_ENABLE_TURBO_MODE)
+#if (NECIR_TURBO_MODE_AFTER != 0)
 	turboModeCounter = 0;
-#endif // NECIR_ENABLE_TURBO_MODE
+#endif // NECIR_TURBO_MODE_AFTER == 0
 	nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
       } else {
 	stateCounter = 0;

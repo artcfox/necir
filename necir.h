@@ -53,7 +53,7 @@
 
 extern const uint8_t oneLeftShiftedBy[8]; // avoids having to bit shift by a variable amount
 
-#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
+#if (NECIR_USE_EXTENDED_PROTOCOL)
 #define necir_message_t uint32_t
 #else
 #define necir_message_t uint16_t

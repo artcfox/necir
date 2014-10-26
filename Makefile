@@ -19,8 +19,8 @@ DEVICE     = atmega328p
 #CLOCK      = 20000000
 #CLOCK      = 18432000
 #CLOCK      = 16000000
-CLOCK      = 8000000
-#CLOCK      = 1000000
+#CLOCK      = 8000000
+CLOCK      = 1000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o necir.o
 
@@ -28,7 +28,7 @@ OBJECTS    = main.o necir.o
 #FUSES      = -U hfuse:w:0xda:m -U lfuse:w:0xff:m
 
 # Default setting for ATmega328P
-#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x62:m
+FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x62:m
 
 # Enable clock output
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x22:m
@@ -37,7 +37,7 @@ OBJECTS    = main.o necir.o
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe2:m
 
 # Remove clock divider, enable clock output
-FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
+#FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xa2:m
 
 # Remove clock divider, set external crystal
 #FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0xe6:m
@@ -318,21 +318,19 @@ NECIR_ISR_CTC_TIMER = 0
 #       are strongly preferred.
 NECIR_QUEUE_LENGTH = 16
 
-NECIR_SUPPORT_EXTENDED_PROTOCOL = 0
+NECIR_USE_EXTENDED_PROTOCOL = 0
 
 NECIR_DELAY_UNTIL_REPEAT = 6
 
 NECIR_REPEAT_INTERVAL = 2
 
-NECIR_ENABLE_TURBO_MODE = 1
-
-# Defines how many repeats at the NECIR_REPEAT_INTERVAL must be seen
-# before the repeats occur at an unscaled rate (as fast as the remote
-# is actually sending them).
-#
-# Note: This must be an integer between 0 and 255, with 0 being
-#       equivalent to waiting 256 intervals (probably not what you
-#       want). This option is ignored if NECIR_ENABLE_TURBO_MODE = 0
+# Defines how many repeats at the NECIR_REPEAT_INTERVAL interval must
+# be seen before the repeats occur at NECIR_TURBO_REPEAT_INTERVAL
+# rate. These settings allow for "accelerated repeats" after
+# NECIR_TURBO_MODE_AFTER repeats have been seen.
+# 
+#     0 = Disable turbo mode
+# 1-255 = Number of repeats before changing the repeat interval
 NECIR_TURBO_MODE_AFTER = 10
 NECIR_TURBO_REPEAT_INTERVAL = 1
 
@@ -358,10 +356,9 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 	      -DAPP_FLAG_SYNC=$(APP_FLAG_SYNC) \
               -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
               -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
-              -DNECIR_SUPPORT_EXTENDED_PROTOCOL=$(NECIR_SUPPORT_EXTENDED_PROTOCOL) \
+              -DNECIR_USE_EXTENDED_PROTOCOL=$(NECIR_USE_EXTENDED_PROTOCOL) \
               -DNECIR_DELAY_UNTIL_REPEAT=$(NECIR_DELAY_UNTIL_REPEAT) \
               -DNECIR_REPEAT_INTERVAL=$(NECIR_REPEAT_INTERVAL) \
-              -DNECIR_ENABLE_TURBO_MODE=$(NECIR_ENABLE_TURBO_MODE) \
               -DNECIR_TURBO_MODE_AFTER=$(NECIR_TURBO_MODE_AFTER) \
               -DNECIR_TURBO_REPEAT_INTERVAL=$(NECIR_TURBO_REPEAT_INTERVAL) \
               -DIR_DDR=$(IR_DDR) \
@@ -382,7 +379,7 @@ APP_DEFINES = -DAPP_FLAGS=GPIOR0 \
 # Tune the lines below only if you know what you are doing:
 
 AVRDUDE    = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -flto -fwhole-program -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
+COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -mint8 -D__DELAY_BACKWARD_COMPATIBLE__ -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 #COMPILE    = avr-gcc -std=gnu99 -Wall -Wextra -Werror -Winline -O3 -funroll-loops -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) $(APP_DEFINES)
 
 LINK_FLAGS = -lc -lm
