@@ -38,6 +38,9 @@
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
 #endif // NECIR_QUEUE_LENGTH
 
+// Only call this macro with a constant, otherwise it will pull in floating point math, rather than compile the entire thing down to a constant
+#define samplesFromMilliseconds(ms) ((ms)/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU))
+
 union Message {
   uint32_t value;
   uint8_t byte[4];
@@ -110,7 +113,7 @@ ISR(TIMER2_COMPA_vect)
 #error "NECIR_ISR_CTC_TIMER must be 0 or 2"
 #endif // NECIR_ISR_CTC_TIMER
 {
-  setHigh(PROBE_INPUT, PROBE_PIN);
+  //  setHigh(PROBE_INPUT, PROBE_PIN);
 
   static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE,
 		NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
@@ -160,10 +163,10 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_LEADER: // IR was low, needs to be low for 9ms
     if (!sample) { // if low now, make sure it hasn't been low for too long
-      if (++stateCounter > (uint8_t)(9.0/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1))
+      if (++stateCounter > (uint8_t)samplesFromMilliseconds(9.0) + 1)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
     } else { // if high now, make sure that it was low for long enough
-      if (stateCounter < (uint8_t)(9.0/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) - 2))
+      if (stateCounter < (uint8_t)samplesFromMilliseconds(9.0) - 2)
 	state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else { // was low for 9ms, switch to pause state
 	stateCounter = 0;
@@ -173,18 +176,18 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_PAUSE: // IR was high, needs to be high for 4.5ms
     if (sample) { // if high now, make sure it hasn't been high for too long
-      if (++stateCounter > (uint8_t)(4.5/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1))
+      if (++stateCounter > (uint8_t)samplesFromMilliseconds(4.5) + 1)
 	state = NECIR_STATE_IDLE; // high for too long, switch to idle state
     } else { // if low now, make sure that it was high for long enough
-      if (stateCounter < (uint8_t)(2.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) - 2)) {
+      if (stateCounter < (uint8_t)samplesFromMilliseconds(2.25) - 2) {
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
-      } else if (stateCounter > (uint8_t)(2.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // was high for longer than a repeat code, so switch to bit leader state
+      } else if (stateCounter > (uint8_t)samplesFromMilliseconds(2.25) + 1) { // was high for longer than a repeat code, so switch to bit leader state
 	repeatCounter = stateCounter = bitCounter = message.value = 0;
 	state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
 	state = NECIR_STATE_WAITING_FOR_IDLE;
-	if (repeatCounter <= (uint16_t)(110.25/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) { // make sure the repeat code came within 110ms of the last message
+	if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110ms of the last message
 	  repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
 	  /*
 	    To implement "delay until repeat" behavior, we need to
@@ -222,10 +225,10 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     if (!sample) { // if low now, make sure it hasn't been low for too long
-      if (++stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1))
+      if (++stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
     } else { // if high now, make sure that it was low for long enough
-      if (stateCounter < (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) - 2))
+      if (stateCounter < (uint8_t)samplesFromMilliseconds(0.5625) - 2)
 	state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
 	stateCounter = 0;
@@ -235,13 +238,13 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_BIT_PAUSE: // IR was high, needs to be high for either 562.5uS (0-bit) or 1.6875ms (1-bit)
     if (sample) { // if high now, make sure it hasn't been high for too long
-      if (++stateCounter > (uint8_t)(1.6875/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1))
+      if (++stateCounter > (uint8_t)samplesFromMilliseconds(1.6875) + 1)
 	state = NECIR_STATE_IDLE; // high for too long, switch to idle state
     } else { // if low now, make sure that it was high for long enough
-      if (stateCounter < (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) - 2)) {
+      if (stateCounter < (uint8_t)samplesFromMilliseconds(0.5625) - 2) {
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
-      } else if (stateCounter > (uint8_t)(0.5625/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU) + 1)) // was high for longer than a 0-bit, so it's a 1-bit
+      } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
 	message.byte[bitCounter/8] |= oneLeftShiftedBy[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
       if (++bitCounter > 31) {
 	state = NECIR_STATE_PROCESS;
@@ -262,5 +265,5 @@ ISR(TIMER2_COMPA_vect)
       NECIR_enqueue(&message.value, false);
     break;
   }
-  setHigh(PROBE_INPUT, PROBE_PIN);
+  //  setHigh(PROBE_INPUT, PROBE_PIN);
 }

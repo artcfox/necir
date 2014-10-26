@@ -40,6 +40,9 @@ int main(void)
   bool isRepeat; // whether the message is a repeat message or not
 
   for (;;) {
+    // Uncomment the following line to see how long it takes the ISR to execute in its various states
+    /* while (1) setHigh(PROBE_INPUT, PROBE_PIN); */
+
     // Process all queued NEC IR events
     while (NECIR_HasEvent()) {
       NECIR_GetNextEvent(&message, &isRepeat);

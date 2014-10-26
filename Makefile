@@ -309,10 +309,10 @@ NECIR_ISR_CTC_TIMER = 0
 # NEC IR messages are decoded in real-time by the interrupt routine,
 # and are placed into a queue where the main() routine can fetch them.
 # NECIR_QUEUE_LENGTH defines the length of this queue, and thus the
-# number of messages that can be received, but not yet processed by
-# the main() routine at any given time. If new messages arrive while
-# main() is blocked, as long this queue isn't full, those messages
-# will not be lost.
+# number of outstanding (unread) messages at any given time. As long
+# this queue isn't full, all new incoming messages will be correctly
+# received, even if the code running inside main() was totally blocked
+# at that time.
 #
 # Note: NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two
 #       are strongly preferred.
@@ -321,7 +321,6 @@ NECIR_QUEUE_LENGTH = 16
 NECIR_USE_EXTENDED_PROTOCOL = 0
 
 NECIR_DELAY_UNTIL_REPEAT = 6
-
 NECIR_REPEAT_INTERVAL = 2
 
 # Defines how many repeats at the NECIR_REPEAT_INTERVAL interval must
@@ -331,7 +330,7 @@ NECIR_REPEAT_INTERVAL = 2
 # 
 #     0 = Disable turbo mode
 # 1-255 = Number of repeats before changing the repeat interval
-NECIR_TURBO_MODE_AFTER = 10
+NECIR_TURBO_MODE_AFTER = 0
 NECIR_TURBO_REPEAT_INTERVAL = 1
 
 # This defines which pin the IR receiver is connected to:
