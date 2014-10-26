@@ -318,18 +318,43 @@ NECIR_ISR_CTC_TIMER = 0
 #       are strongly preferred.
 NECIR_QUEUE_LENGTH = 16
 
+# The NEC IR standard specifies a 32-bit message, sent LSB-first with
+# the first 8-bits being an address, followed by the 8-bit inverse of
+# that address, followed by an 8-bit command, followed by the 8-bit
+# inverse of that command. This results in 16 bits of actual data
+# being sent per message. If you are willing to give up error
+# checking, it is possible to instead use those inverse bits for
+# actual data, increasing the total message size to 32 bits.
+#
+# 0 = Use the standard NEC protocol
+# 1 = Use the extended NEC protocol (Required for Adafruit Mini IR Remote)
 NECIR_USE_EXTENDED_PROTOCOL = 0
 
+# NECIR_DELAY_UNTIL_REPEAT defines how many repeats at the native
+# repeat interval of the IR remote (108ms) are skipped before emitting
+# the first repeat, after which the repeat interval will be changed to
+# NECIR_REPEAT_INTERVAL * 108ms
+#
 NECIR_DELAY_UNTIL_REPEAT = 6
 NECIR_REPEAT_INTERVAL = 2
 
 # Defines how many repeats at the NECIR_REPEAT_INTERVAL interval must
-# be seen before the repeats occur at NECIR_TURBO_REPEAT_INTERVAL
-# rate. These settings allow for "accelerated repeats" after
-# NECIR_TURBO_MODE_AFTER repeats have been seen.
+# occur before the repeat interval is changed to
+# NECIR_TURBO_REPEAT_INTERVAL. These two settings allow the repeat
+# interval to increase if a button is held down for long enough for
+# NECIR_TURBO_MODE_AFTER repeats to be emitted.
 # 
+# NECIR_TURBO_MODE_AFTER
 #     0 = Disable turbo mode
-# 1-255 = Number of repeats before changing the repeat interval
+# 1-255 = Number of repeats before changing the repeat interval to
+#         NECIR_TURBO_REPEAT_INTERVAL
+#
+# NECIR_TURBO_REPEAT_INTERVAL
+#			    1 = Turbo repeats occur as fast as the
+#                               IR remote sends them (every 108 ms)
+#
+#     2-NECIR_REPEAT_INTERVAL = Turbo repeats occur at this multiple
+#				of 108 ms.
 NECIR_TURBO_MODE_AFTER = 0
 NECIR_TURBO_REPEAT_INTERVAL = 1
 
