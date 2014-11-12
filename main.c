@@ -5,31 +5,12 @@
 
 #include "necir.h"
 
-#define setInput(ddr, pin) ((ddr) &= ~(1 << (pin)))
-#define setOutput(ddr, pin) ((ddr) |= (1 << (pin)))
-#define setLow(port, pin) ((port) &= ~(1 << (pin)))
-#define setHigh(port, pin) ((port) |= (1 << (pin)))
-#define getValue(port, pin) ((port) & (1 << (pin)))
-#define inputState(input, pin) ((input) & (1 << (pin)))
-#define outputState(port, pin) ((port) & (1 << (pin)))
-#define enablePullup(port, pin) ((port) |= (1 << (pin)))
- 
-
 int main(void)
 {
-
-  // Set IR pin as input and enable pullup
-  setInput(IR_DDR, IR_PIN);
-  enablePullup(IR_PORT, IR_PIN);
-
   // Set diagnostic LED pin as output and turn LED off
   setOutput(LED_DDR, LED_PIN);
-  setHigh(LED_PORT, LED_PIN);
+  setLow(LED_PORT, LED_PIN);
   
-  // Set diagnostic probe pin as output and set it low
-  setOutput(PROBE_DDR, PROBE_PIN);
-  setLow(PROBE_PORT, PROBE_PIN);
-
   // Initialize the NEC IR library
   NECIR_Init();
   
@@ -41,7 +22,7 @@ int main(void)
 
   for (;;) {
     // Uncomment the following line to see how long it takes the ISR to execute in its various states
-    /* while (1) setHigh(PROBE_INPUT, PROBE_PIN); */
+    /* while (1) setHigh(LED_INPUT, LED_PIN); */
 
     // Process all queued NEC IR events
     while (NECIR_HasMessage()) {
@@ -66,11 +47,6 @@ int main(void)
 	  _delay_ms(50);
 	}
 #else // NECIR_SUPPORT_EXTENDED_PROTOCOL
-      /* for (uint16_t i = 0; i < ((uint8_t)message << 1); ++i) { */
-      /* 	setHigh(LED_INPUT, LED_PIN); */
-      /* 	_delay_ms(200); */
-      /* } */
-      /* continue; */
       if (message == 0x0408 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
       else if (message == 0x0402) // VOL_UP
@@ -92,16 +68,6 @@ int main(void)
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
 	  _delay_ms(25);
-	}
-      else if (message == 0x001A)
-	for (uint8_t i = 0; i < 6; ++i) {
-	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(50);
-	}
-      else if (message == 0x0000)
-	for (uint8_t i = 0; i < 2; ++i) {
-	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(50);
 	}
 #endif // NECIR_SUPPORT_EXTENDED_PROTOCOL
     }

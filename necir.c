@@ -34,9 +34,8 @@
 
 #include "necir.h"
 
-#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
-#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
-#endif // NECIR_QUEUE_LENGTH
+// Auto-calculate timer interval based on F_CPU
+#define NECIR_CTC_TOP ((uint8_t)(F_CPU/1000000)-1)
 
 // Only call this macro with a constant, otherwise it will pull in floating point math, rather than compile the entire thing down to a constant
 #define samplesFromMilliseconds(ms) ((ms)/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU))
@@ -48,11 +47,13 @@ union Message {
 
 const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
+#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
+#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
+#endif // NECIR_QUEUE_LENGTH
 volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
-volatile uint8_t NECIR_head = 0;
-volatile uint8_t NECIR_tail = 0;
-
 volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
+volatile uint8_t NECIR_head; // initialized to zero by default
+volatile uint8_t NECIR_tail; // initialized to zero by default
 
 static inline uint8_t NECIR_full(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_full(void) {
@@ -71,14 +72,18 @@ static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
     return; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
   if (isRepeat)
-    NECIR_repeatFlagQueue[NECIR_tail/8] |= oneLeftShiftedBy[NECIR_tail%8];
+    NECIR_repeatFlagQueue[NECIR_tail / 8] |= oneLeftShiftedBy[NECIR_tail % 8];
   else
-    NECIR_repeatFlagQueue[NECIR_tail/8] &= oneLeftShiftedBy[NECIR_tail%8] ^ 0xFF;
+    NECIR_repeatFlagQueue[NECIR_tail / 8] &= oneLeftShiftedBy[NECIR_tail % 8] ^ 0xFF;
   NECIR_tail = (NECIR_tail + 1) % NELEMS(NECIR_messageQueue);
 }
 
 void NECIR_Init(void)
 {
+  // Set IR pin as input and enable pullup
+  setInput(IR_DDR, IR_PIN);
+  enablePullup(IR_PORT, IR_PIN);
+
 #if (NECIR_ISR_CTC_TIMER == 0)
   // CTC with OCR0A as TOP
   TCCR0A = (1 << WGM01);
@@ -88,7 +93,11 @@ void NECIR_Init(void)
   OCR0A = NECIR_CTC_TOP; // Generate an interrupt every (NECIR_CTC_TOP + 1)*256 clock cycles
 
   // Enable Timer/Counter0 Compare Match A interrupt
+#ifdef TIMSK0
   TIMSK0 |= (1 << OCIE0A);
+#else // TIMSK0
+  TIMSK |= (1 << OCIE0A);
+#endif // TIMSK0
 #elif (NECIR_ISR_CTC_TIMER == 2)
   // CTC with OCR2A as TOP
   TCCR2A = (1 << WGM21);
@@ -99,7 +108,7 @@ void NECIR_Init(void)
 
   // Enable Timer/Counter2 Compare Match A interrupt
   TIMSK2 |= (1 << OCIE2A);
-#else
+#else // NECIR_ISR_CTC_TIMER
 #error "NECIR_ISR_CTC_TIMER must be 0 or 2"
 #endif // NECIR_ISR_CTC_TIMER
 }
@@ -109,12 +118,10 @@ void NECIR_Init(void)
 ISR(TIMER0_COMPA_vect)
 #elif (NECIR_ISR_CTC_TIMER == 2)
 ISR(TIMER2_COMPA_vect)
-#else
+#else // NECIR_ISR_CTC_TIMER
 #error "NECIR_ISR_CTC_TIMER must be 0 or 2"
 #endif // NECIR_ISR_CTC_TIMER
 {
-  //  setHigh(PROBE_INPUT, PROBE_PIN);
-
   static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE,
 		NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
 		NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE,
@@ -143,11 +150,11 @@ ISR(TIMER2_COMPA_vect)
 
 #if (NECIR_TURBO_MODE_AFTER != 0)
   static uint8_t turboModeCounter;
-#endif // NECIR_TURBO_MODE_AFTER != 0
+#endif // NECIR_TURBO_MODE_AFTER
 
   static union Message message;
   
-  uint8_t sample = getValue(IR_INPUT, IR_PIN);
+  uint8_t sample = inputState(IR_INPUT, IR_PIN);
 
   ++repeatCounter;
   switch (state) {
@@ -210,7 +217,7 @@ ISR(TIMER2_COMPA_vect)
 	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) // have we repeated enough to decrease the repeat interval even further?
 		nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL;
 	      break;
-#endif // NECIR_TURBO_MODE_AFTER != 0
+#endif // NECIR_TURBO_MODE_AFTER
 	    }
 	    state = NECIR_STATE_REPEAT_PROCESS;
 	  }
@@ -245,13 +252,13 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
-	message.byte[bitCounter/8] |= oneLeftShiftedBy[bitCounter%8]; // does the same thing as "message.value |= ((uint32_t)1 << bitCounter)" but orders of magnitude faster
+	message.byte[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "message.value |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
 	state = NECIR_STATE_PROCESS;
 	nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
 	turboModeCounter = 0;
-#endif // NECIR_TURBO_MODE_AFTER == 0
+#endif // NECIR_TURBO_MODE_AFTER
 	nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
       } else {
 	stateCounter = 0;
@@ -265,5 +272,4 @@ ISR(TIMER2_COMPA_vect)
       NECIR_enqueue(&message.value, false);
     break;
   }
-  //  setHigh(PROBE_INPUT, PROBE_PIN);
 }

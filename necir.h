@@ -47,28 +47,28 @@
 
 #define NELEMS(x) (sizeof(x)/sizeof(x[0]))
 
-#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
-#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
-#endif // NECIR_QUEUE_LENGTH
-
 extern const uint8_t oneLeftShiftedBy[8]; // avoids having to bit shift by a variable amount
 
 #if (NECIR_USE_EXTENDED_PROTOCOL)
 #define necir_message_t uint32_t
-#else
+#else // NECIR_USE_EXTENDED_PROTOCOL
 #define necir_message_t uint16_t
-#endif
+#endif // NECIR_USE_EXTENDED_PROTOCOL
 
+#if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
+#error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two preferred"
+#endif // NECIR_QUEUE_LENGTH
 extern volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
-extern volatile uint8_t NECIR_head;
-extern volatile uint8_t NECIR_tail;
 
 #if ((NECIR_QUEUE_LENGTH) % 8 == 0)
 #define NECIR_REPEAT_QUEUE_BYTES ((NECIR_QUEUE_LENGTH) / 8)
-#else
+#else // NECIR_QUEUE_LENGTH
 #define NECIR_REPEAT_QUEUE_BYTES ((NECIR_QUEUE_LENGTH) / 8 + 1)
 #endif // NECIR_QUEUE_LENGTH
 extern volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
+
+extern volatile uint8_t NECIR_head;
+extern volatile uint8_t NECIR_tail;
 
 static inline uint8_t NECIR_HasMessage(void) __attribute__(( always_inline ));
 static inline uint8_t NECIR_HasMessage(void) {
@@ -78,10 +78,8 @@ static inline uint8_t NECIR_HasMessage(void) {
 static inline void NECIR_GetNextMessage(necir_message_t *message, bool *isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_GetNextMessage(necir_message_t *message, bool *isRepeat) {
   *message = NECIR_messageQueue[NECIR_head];
-  *isRepeat = NECIR_repeatFlagQueue[NECIR_head/8] & oneLeftShiftedBy[NECIR_head%8];
+  *isRepeat = NECIR_repeatFlagQueue[NECIR_head / 8] & oneLeftShiftedBy[NECIR_head % 8];
   NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);
 }
-
-#define NECIR_CTC_TOP ((uint8_t)(F_CPU/1000000)-1) // auto-calculate timer interval based on F_CPU
 
 void NECIR_Init(void);
