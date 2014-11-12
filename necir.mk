@@ -37,7 +37,7 @@ NECIR_USE_EXTENDED_PROTOCOL = 0
 # NECIR_REPEAT_INTERVAL * 108ms
 #
 NECIR_DELAY_UNTIL_REPEAT = 6
-NECIR_REPEAT_INTERVAL = 2
+NECIR_REPEAT_INTERVAL = 3
 
 # NECIR_TURBO_MODE_AFTER defines how many repeats at the
 # NECIR_REPEAT_INTERVAL interval (repeats actually emitted by this
@@ -54,7 +54,7 @@ NECIR_REPEAT_INTERVAL = 2
 # 1-255 = Turbo repeats occur at this multiple of 108 ms.
 #
 NECIR_TURBO_MODE_AFTER = 0
-NECIR_TURBO_REPEAT_INTERVAL = 1
+NECIR_TURBO_REPEAT_INTERVAL = 2
 
 # This defines which pin the IR receiver is connected to:
 IR_DDR = DDRB

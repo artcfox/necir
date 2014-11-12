@@ -191,30 +191,16 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE;
 	if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110ms of the last message
 	  repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
-	  /*
-	    To implement "delay until repeat" behavior, we need to
-	    have seen a certain number of native repeat messages
-	    before we pass one back to the application.
-	  */
-	  if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen the proper number of native repeat messages? 
+	  if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
 	    nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
-	    /*
-	      After we've met the condition for "delay until repeat"
-	      behavior, decrease the nativeRepeatsNeeded variable to
-	      implement "repeat interval" behavior.
-	    */
-	    switch (nativeRepeatsNeeded) {
-	    case NECIR_DELAY_UNTIL_REPEAT:
-	      nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // set the initial repeat interval
-	      break;
+	    nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
 #if (NECIR_TURBO_MODE_AFTER != 0)
-	    case NECIR_REPEAT_INTERVAL:
-	      if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) // have we repeated enough to decrease the repeat interval even further?
-		nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL;
-	      break;
-#endif // NECIR_TURBO_MODE_AFTER
+	    if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to activate turbo mode?
+	      --turboModeCounter; // ensure that we stay in turbo mode
+	      nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL; // set the turbo mode repeat interval
 	    }
-	    state = NECIR_STATE_REPEAT_PROCESS;
+#endif // NECIR_TURBO_MODE_AFTER
+	    state = NECIR_STATE_REPEAT_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
 	  }
 	}
       }
@@ -249,12 +235,12 @@ ISR(TIMER2_COMPA_vect)
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
 	message[3 - bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
-	state = NECIR_STATE_PROCESS;
 	nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
 	turboModeCounter = 0;
 #endif // NECIR_TURBO_MODE_AFTER
 	nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
+	state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
       } else {
 	stateCounter = 0;
 	state = NECIR_STATE_BIT_LEADER;

@@ -22,7 +22,7 @@ int main(void)
 
   for (;;) {
     // Uncomment the following line to see how long it takes the ISR to execute in its various states
-    while (1) setHigh(LED_INPUT, LED_PIN);
+    /* while (1) setHigh(LED_INPUT, LED_PIN); */
 
     // Process all queued NEC IR events
     while (NECIR_HasMessage()) {
