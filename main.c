@@ -51,6 +51,38 @@ int main(void)
 	  setHigh(LED_INPUT, LED_PIN);
 	  _delay_ms(25);
 	}
+      else if ((message >> 16) == 0x00BF) { // match Adafruit Mini IR Remote extended address bits
+	if ((((uint16_t)message) >> 8) == ((uint8_t)message ^ 0xFF)) { // validate the command bits
+	  switch ((((uint16_t)message) >> 8)) { // switch based on the command
+	  case 0:
+	  case 1:
+	  case 2:
+	  case 4:
+	  case 5:
+	  case 6:
+	  case 8:
+	  case 9:
+	  case 10:
+	  case 12:
+	  case 13:
+	  case 14:
+	  case 16:
+	  case 17:
+	  case 18:
+	  case 20:
+	  case 21:
+	  case 22:
+	  case 24:
+	  case 25:
+	  case 26:
+	    for (uint8_t i = 0; i < 2; ++i) {
+	      setHigh(LED_INPUT, LED_PIN);
+	      _delay_ms(250);
+	    }
+	    break;
+	  }
+	}
+      }
 #else // NECIR_SUPPORT_EXTENDED_PROTOCOL
       if (message == 0x0408 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
