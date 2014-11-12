@@ -22,29 +22,34 @@ int main(void)
 
   for (;;) {
     // Uncomment the following line to see how long it takes the ISR to execute in its various states
-    /* while (1) setHigh(LED_INPUT, LED_PIN); */
+    while (1) setHigh(LED_INPUT, LED_PIN);
 
     // Process all queued NEC IR events
     while (NECIR_HasMessage()) {
       NECIR_GetNextMessage(&message, &isRepeat);
 
-#if (NECIR_SUPPORT_EXTENDED_PROTOCOL)
-      if (message == 0xF708FB04 && !isRepeat) // disallow repeat for power button
+#if (NECIR_USE_EXTENDED_PROTOCOL)
+      if (message == 0x04FB08F7 && !isRepeat) // disallow repeat for power button
 	setHigh(LED_INPUT, LED_PIN);
-      else if (message == 0xFD02FB04)
+      else if (message == 0x04FB02FD) // VOL_UP
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(37.5);
+	}
+      else if (message == 0x04FB03FC) // VOL_DN
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
 	  _delay_ms(50);
 	}
-      else if (message == 0xE51ABF00)
-	for (uint8_t i = 0; i < 6; ++i) {
-	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(50);
-	}
-      else if (message == 0xFF00BF00)
+      else if (message == 0x04FB00FF) // CH_UP
 	for (uint8_t i = 0; i < 2; ++i) {
 	  setHigh(LED_INPUT, LED_PIN);
-	  _delay_ms(50);
+	  _delay_ms(12.5);
+	}
+      else if (message == 0x04FB01FE) // CH_DN
+	for (uint8_t i = 0; i < 2; ++i) {
+	  setHigh(LED_INPUT, LED_PIN);
+	  _delay_ms(25);
 	}
 #else // NECIR_SUPPORT_EXTENDED_PROTOCOL
       if (message == 0x0408 && !isRepeat) // disallow repeat for power button

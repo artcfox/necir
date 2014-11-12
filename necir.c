@@ -40,11 +40,6 @@
 // Only call this macro with a constant, otherwise it will pull in floating point math, rather than compile the entire thing down to a constant
 #define samplesFromMilliseconds(ms) ((ms)/((float)(NECIR_CTC_TOP+1)*256*1000/F_CPU))
 
-union Message {
-  uint32_t value;
-  uint8_t byte[4];
-};
-
 const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
@@ -60,14 +55,13 @@ static inline uint8_t NECIR_full(void) {
   return (NECIR_head == (NECIR_tail + 1) % NELEMS(NECIR_messageQueue));
 }
 
-static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) __attribute__(( always_inline ));
-static inline void NECIR_enqueue(uint32_t *message, bool isRepeat) {
+static inline void NECIR_enqueue(uint8_t *message, bool isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_enqueue(uint8_t *message, bool isRepeat) {
 #if (NECIR_USE_EXTENDED_PROTOCOL)
-  NECIR_messageQueue[NECIR_tail] = *message;
+  NECIR_messageQueue[NECIR_tail] = *((uint32_t*)message);
 #else // NECIR_USE_EXTENDED_PROTOCOL
-  union Message *msg = (union Message*)message;
-  if (msg->byte[0] == (msg->byte[1] ^ 0xFF) && msg->byte[2] == (msg->byte[3] ^ 0xFF))
-    NECIR_messageQueue[NECIR_tail] = ((uint16_t)msg->byte[0] << 8) | msg->byte[2];
+  if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF))
+    NECIR_messageQueue[NECIR_tail] = ((uint16_t)message[3] << 8) | message[1];
   else
     return; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
@@ -152,8 +146,9 @@ ISR(TIMER2_COMPA_vect)
   static uint8_t turboModeCounter;
 #endif // NECIR_TURBO_MODE_AFTER
 
-  static union Message message;
-  
+  //static union Message message;
+  static uint8_t message[4];
+
   uint8_t sample = inputState(IR_INPUT, IR_PIN);
 
   ++repeatCounter;
@@ -190,7 +185,7 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(2.25) + 1) { // was high for longer than a repeat code, so switch to bit leader state
-	repeatCounter = stateCounter = bitCounter = message.value = 0;
+	repeatCounter = stateCounter = bitCounter = message[0] = message[1] = message[2] = message[3] = 0;
 	state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
 	state = NECIR_STATE_WAITING_FOR_IDLE;
@@ -228,7 +223,7 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_REPEAT_PROCESS:
     state = NECIR_STATE_WAITING_FOR_IDLE;
     if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-      NECIR_enqueue(&message.value, true);
+      NECIR_enqueue(message, true);
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     if (!sample) { // if low now, make sure it hasn't been low for too long
@@ -252,7 +247,7 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
-	message.byte[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "message.value |= ((uint32_t)1 << bitCounter)"
+	message[3 - bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
 	state = NECIR_STATE_PROCESS;
 	nativeRepeatsSeen = 0; // initialize repeat counters
@@ -269,7 +264,7 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
     state = NECIR_STATE_WAITING_FOR_IDLE;
     if (!NECIR_full()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-      NECIR_enqueue(&message.value, false);
+      NECIR_enqueue(message, false);
     break;
   }
 }
