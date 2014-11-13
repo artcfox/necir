@@ -25,8 +25,8 @@ int main(void)
     /* while (1) setHigh(LED_INPUT, LED_PIN); */
 
     // Process all queued NEC IR events
-    while (NECIR_HasMessage()) {
-      NECIR_GetNextMessage(&message, &isRepeat);
+    while (!NECIR_QueueEmpty()) {
+      NECIR_Dequeue(&message, &isRepeat);
 
 #if (NECIR_USE_EXTENDED_PROTOCOL)
       if (message == 0x04FB08F7 && !isRepeat) // disallow repeat for power button
@@ -77,7 +77,7 @@ int main(void)
 	  case 26:
 	    for (uint8_t i = 0; i < 2; ++i) {
 	      setHigh(LED_INPUT, LED_PIN);
-	      _delay_ms(250);
+	      _delay_ms(250); // a really long delay, so you can see the effect of the queue
 	    }
 	    break;
 	  }
