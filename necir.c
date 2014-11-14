@@ -60,9 +60,11 @@ static inline void NECIR_Enqueue(uint8_t *message, bool isRepeat) {
 #if (NECIR_USE_EXTENDED_PROTOCOL)
   NECIR_messageQueue[NECIR_tail] = *((uint32_t*)message);
 #else // NECIR_USE_EXTENDED_PROTOCOL
-  if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF))
-    NECIR_messageQueue[NECIR_tail] = ((uint16_t)message[0] << 8) | message[2];
-  else
+  if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF)) {
+    uint8_t *p = (uint8_t*)&NECIR_messageQueue[NECIR_tail];
+    *p++ = message[2]; // faster than: NECIR_messageQueue[NECIR_tail] =
+    *p = message[0];   //                ((uint16_t)message[0] << 8) | message[2];
+  } else
     return; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
   if (isRepeat)
