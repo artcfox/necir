@@ -67,7 +67,7 @@ extern volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 #endif // NECIR_QUEUE_LENGTH
 extern volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 
-extern volatile uint8_t NECIR_head;
+extern uint8_t NECIR_head;
 extern volatile uint8_t NECIR_tail;
 
 static inline uint8_t NECIR_QueueEmpty(void) __attribute__(( always_inline ));

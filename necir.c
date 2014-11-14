@@ -47,7 +47,7 @@ const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids hav
 #endif // NECIR_QUEUE_LENGTH
 volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
-volatile uint8_t NECIR_head; // initialized to zero by default
+uint8_t NECIR_head; // initialized to zero by default
 volatile uint8_t NECIR_tail; // initialized to zero by default
 
 static inline uint8_t NECIR_QueueFull(void) __attribute__(( always_inline ));
