@@ -59,7 +59,7 @@ static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
     *p++ = message[3]; // as fast as: NECIR_messageQueue[tail] =
     *p++ = message[2]; //               *((uint32_t*)message);
     *p++ = message[1]; // but we reverse the byte order for free here, rather than
-    *p = message[0];   // explicitly reversing those bytes when each bit was received
+    *p = message[0];   // explicitly reversing the bytes when each bit was received
 #else // NECIR_USE_EXTENDED_PROTOCOL
     if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF)) { // validate inverse bit patterns
       uint8_t *p = (uint8_t*)&NECIR_messageQueue[tail];
