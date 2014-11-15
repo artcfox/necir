@@ -58,7 +58,7 @@ static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
     uint8_t *p = (uint8_t*)&NECIR_messageQueue[tail];
     *p++ = message[3]; // as fast as: NECIR_messageQueue[tail] =
     *p++ = message[2]; //               *((uint32_t*)message);
-    *p++ = message[1]; // but we reversed the byte order for free here, rather than
+    *p++ = message[1]; // but we reverse the byte order for free here, rather than
     *p = message[0];   // explicitly reversing those bytes when each bit was received
 #else // NECIR_USE_EXTENDED_PROTOCOL
     if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF)) { // validate inverse bit patterns
@@ -121,9 +121,9 @@ ISR(TIMER2_COMPA_vect)
 #endif // NECIR_ISR_CTC_TIMER
 {
   static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE,
-		NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
-		NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE,
-		NECIR_STATE_PROCESS, NECIR_STATE_REPEAT_PROCESS } state;
+                NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
+                NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE,
+                NECIR_STATE_PROCESS, NECIR_STATE_REPEAT_PROCESS } state;
 
   static uint8_t stateCounter; // stores the number of times we have sampled the state minus one
   static uint8_t bitCounter; // keeps track of how many bits we've currently decoded
@@ -168,43 +168,43 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_LEADER: // IR was low, needs to be low for 9ms
     if (!sample) { // if low now, make sure it hasn't been low for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(9.0) + 1)
-	state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
+        state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
     } else { // if high now, make sure that it was low for long enough
       if (stateCounter < (uint8_t)samplesFromMilliseconds(9.0) - 2)
-	state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
+        state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else { // was low for 9ms, switch to pause state
-	stateCounter = 0;
-	state = NECIR_STATE_PAUSE;
+        stateCounter = 0;
+        state = NECIR_STATE_PAUSE;
       }
     }
     break;
   case NECIR_STATE_PAUSE: // IR was high, needs to be high for 4.5ms
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(4.5) + 1)
-	state = NECIR_STATE_IDLE; // high for too long, switch to idle state
+        state = NECIR_STATE_IDLE; // high for too long, switch to idle state
     } else { // if low now, make sure that it was high for long enough
       if (stateCounter < (uint8_t)samplesFromMilliseconds(2.25) - 2) {
-	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
-	break;
+        state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
+        break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(2.25) + 1) { // was high for longer than a repeat code, so switch to bit leader state
-	repeatCounter = stateCounter = bitCounter = message[0] = message[1] = message[2] = message[3] = 0;
-	state = NECIR_STATE_BIT_LEADER;
+        repeatCounter = stateCounter = bitCounter = message[0] = message[1] = message[2] = message[3] = 0;
+        state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
-	state = NECIR_STATE_WAITING_FOR_IDLE;
-	if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110ms of the last message
-	  repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
-	  if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
-	    nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
-	    nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
+        state = NECIR_STATE_WAITING_FOR_IDLE;
+        if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110ms of the last message
+          repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
+          if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
+            nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
+            nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
 #if (NECIR_TURBO_MODE_AFTER != 0)
-	    if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to activate turbo mode?
-	      --turboModeCounter; // ensure that we stay in turbo mode
-	      nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL; // set the turbo mode repeat interval
-	    }
+            if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to activate turbo mode?
+              --turboModeCounter; // ensure that we stay in turbo mode
+              nativeRepeatsNeeded = NECIR_TURBO_REPEAT_INTERVAL; // set the turbo mode repeat interval
+            }
 #endif // NECIR_TURBO_MODE_AFTER
-	    state = NECIR_STATE_REPEAT_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
-	  }
-	}
+            state = NECIR_STATE_REPEAT_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
+          }
+        }
       }
     }
     break;
@@ -215,36 +215,36 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     if (!sample) { // if low now, make sure it hasn't been low for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1)
-	state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
+        state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
     } else { // if high now, make sure that it was low for long enough
       if (stateCounter < (uint8_t)samplesFromMilliseconds(0.5625) - 2)
-	state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
+        state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
-	stateCounter = 0;
-	state = NECIR_STATE_BIT_PAUSE;
+        stateCounter = 0;
+        state = NECIR_STATE_BIT_PAUSE;
       }
     }
     break;
   case NECIR_STATE_BIT_PAUSE: // IR was high, needs to be high for either 562.5uS (0-bit) or 1.6875ms (1-bit)
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(1.6875) + 1)
-	state = NECIR_STATE_IDLE; // high for too long, switch to idle state
+        state = NECIR_STATE_IDLE; // high for too long, switch to idle state
     } else { // if low now, make sure that it was high for long enough
       if (stateCounter < (uint8_t)samplesFromMilliseconds(0.5625) - 2) {
-	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
-	break;
+        state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
+        break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
-	message[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
+        message[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
-	nativeRepeatsSeen = 0; // initialize repeat counters
+        nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
-	turboModeCounter = 0;
+        turboModeCounter = 0;
 #endif // NECIR_TURBO_MODE_AFTER
-	nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
-	state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
+        nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
+        state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
       } else {
-	stateCounter = 0;
-	state = NECIR_STATE_BIT_LEADER;
+        stateCounter = 0;
+        state = NECIR_STATE_BIT_LEADER;
       }
     }
     break;
