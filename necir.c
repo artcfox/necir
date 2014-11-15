@@ -50,28 +50,30 @@ volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 uint8_t NECIR_head; // initialized to zero by default
 volatile uint8_t NECIR_tail; // initialized to zero by default
 
-static inline uint8_t NECIR_QueueFull(void) __attribute__(( always_inline ));
-static inline uint8_t NECIR_QueueFull(void) {
-  return (NECIR_head == (NECIR_tail + 1) % NELEMS(NECIR_messageQueue));
-}
-
-static inline void NECIR_Enqueue(uint8_t *message, bool isRepeat) __attribute__(( always_inline ));
-static inline void NECIR_Enqueue(uint8_t *message, bool isRepeat) {
+static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
+  uint8_t tail = NECIR_tail; // cache volatile NECIR_tail, since this function is only ever called from inside the ISR
+  if (NECIR_head != (tail + 1) % NELEMS(NECIR_messageQueue)) { // same as if (!NECIR_QueueFull()) ... but uses cached tail
 #if (NECIR_USE_EXTENDED_PROTOCOL)
-  NECIR_messageQueue[NECIR_tail] = *((uint32_t*)message);
+    uint8_t *p = (uint8_t*)&NECIR_messageQueue[tail];
+    *p++ = message[3]; // as fast as: NECIR_messageQueue[tail] =
+    *p++ = message[2]; //               *((uint32_t*)message);
+    *p++ = message[1]; // but we reversed the byte order for free here, rather than
+    *p = message[0];   // explicitly reversing those bytes when each bit was received
 #else // NECIR_USE_EXTENDED_PROTOCOL
-  if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF)) {
-    uint8_t *p = (uint8_t*)&NECIR_messageQueue[NECIR_tail];
-    *p++ = message[2]; // faster than: NECIR_messageQueue[NECIR_tail] =
-    *p = message[0];   //                ((uint16_t)message[0] << 8) | message[2];
-  } else
-    return; // validation failed, drop the message
+    if (message[0] == (message[1] ^ 0xFF) && message[2] == (message[3] ^ 0xFF)) { // validate inverse bit patterns
+      uint8_t *p = (uint8_t*)&NECIR_messageQueue[tail];
+      *p++ = message[2]; // faster than: NECIR_messageQueue[tail] =
+      *p = message[0];   //                ((uint16_t)message[0] << 8) | message[2];
+    } else
+      return; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
-  if (isRepeat)
-    NECIR_repeatFlagQueue[NECIR_tail / 8] |= oneLeftShiftedBy[NECIR_tail % 8];
-  else
-    NECIR_repeatFlagQueue[NECIR_tail / 8] &= oneLeftShiftedBy[NECIR_tail % 8] ^ 0xFF;
-  NECIR_tail = (NECIR_tail + 1) % NELEMS(NECIR_messageQueue);
+    if (isRepeat)
+      NECIR_repeatFlagQueue[tail / 8] |= oneLeftShiftedBy[tail % 8];
+    else
+      NECIR_repeatFlagQueue[tail / 8] &= oneLeftShiftedBy[tail % 8] ^ 0xFF;
+    NECIR_tail = (tail + 1) % NELEMS(NECIR_messageQueue);
+  }
 }
 
 void NECIR_Init(void)
@@ -208,8 +210,7 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_REPEAT_PROCESS:
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    if (!NECIR_QueueFull()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-      NECIR_Enqueue(message, true);
+    NECIR_EnqueueIfNotFull(message, true); // if there is room on the queue, put the decoded message on it, otherwise drop the message
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     if (!sample) { // if low now, make sure it hasn't been low for too long
@@ -233,11 +234,7 @@ ISR(TIMER2_COMPA_vect)
 	state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
 	break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
-#if (NECIR_USE_EXTENDED_PROTOCOL)
-	message[3 - bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
-#else // NECIR_USE_EXTENDED_PROTOCOL
-	message[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // don't waste time flipping the byte ordering
-#endif // NECIR_USE_EXTENDED_PROTOCOL
+	message[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
 	nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
@@ -253,8 +250,7 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    if (!NECIR_QueueFull()) // if there is room on the queue, put the decoded message on it, otherwise we drop the message
-      NECIR_Enqueue(message, false);
+    NECIR_EnqueueIfNotFull(message, false); // if there is room on the queue, put the decoded message on it, otherwise drop the message
     break;
   }
 }
