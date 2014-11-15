@@ -153,19 +153,21 @@ ISR(TIMER2_COMPA_vect)
 
   uint8_t sample = inputState(IR_INPUT, IR_PIN);
 
-  ++repeatCounter;
   switch (state) {
   case NECIR_STATE_WAITING_FOR_IDLE: // IR was low, waiting for high
+    ++repeatCounter;
     if (sample) // if high now, switch to idle state
       state = NECIR_STATE_IDLE;
     break;
   case NECIR_STATE_IDLE: // IR was high, waiting for low
+    ++repeatCounter;
     if (!sample) { // if low now, reset the counter, and switch to leader state
       stateCounter = 0;
       state = NECIR_STATE_LEADER;
     }
     break;
   case NECIR_STATE_LEADER: // IR was low, needs to be low for 9ms
+    ++repeatCounter;
     if (!sample) { // if low now, make sure it hasn't been low for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(9.0) + 1)
         state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
@@ -179,6 +181,7 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_PAUSE: // IR was high, needs to be high for 4.5ms
+    ++repeatCounter;
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(4.5) + 1)
         state = NECIR_STATE_IDLE; // high for too long, switch to idle state
@@ -191,7 +194,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
         state = NECIR_STATE_WAITING_FOR_IDLE;
-        if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110ms of the last message
+        if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110.25ms of the last message
           repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
           if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
             nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
@@ -213,6 +216,7 @@ ISR(TIMER2_COMPA_vect)
     NECIR_EnqueueIfNotFull(message, true); // if there is room on the queue, put the decoded message on it, otherwise drop the message
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
+    ++repeatCounter;
     if (!sample) { // if low now, make sure it hasn't been low for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1)
         state = NECIR_STATE_WAITING_FOR_IDLE; // low for too long, switch to wait for idle state
@@ -226,6 +230,7 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_BIT_PAUSE: // IR was high, needs to be high for either 562.5uS (0-bit) or 1.6875ms (1-bit)
+    ++repeatCounter;
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(1.6875) + 1)
         state = NECIR_STATE_IDLE; // high for too long, switch to idle state

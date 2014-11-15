@@ -20,6 +20,10 @@ int main(void)
   necir_message_t message; // stores the decoded message
   bool isRepeat; // whether the message is a repeat message or not
 
+ /* loop: */
+ /*  asm volatile ("sbi 0x16,4" "\n\t" ::); */
+ /*  goto loop; */
+
   for (;;) {
     // Uncomment the following line to see how long it takes the ISR to execute in its various states
     /* while (1) setHigh(LED_INPUT, LED_PIN); */
@@ -51,6 +55,12 @@ int main(void)
           setHigh(LED_INPUT, LED_PIN);
           _delay_ms(25);
         }
+      else if ((uint16_t)(message >> 16) == 0x00BF) // Address bits for Adafruit Mini IR Remote
+        for (uint8_t i = 0; i < 2; ++i) {
+          setHigh(LED_INPUT, LED_PIN);
+          _delay_ms(250);
+        }
+
 #else // NECIR_SUPPORT_EXTENDED_PROTOCOL
       if (message == 0x0408 && !isRepeat) // disallow repeat for power button
         setHigh(LED_INPUT, LED_PIN);
