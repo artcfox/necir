@@ -181,7 +181,8 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_PAUSE: // IR was high, needs to be high for 4.5ms
-    ++repeatCounter;
+    // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
+    // doesn't really matter, because the repeat timeout needs to have a margin of error
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(4.5) + 1)
         state = NECIR_STATE_IDLE; // high for too long, switch to idle state
@@ -194,7 +195,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
         state = NECIR_STATE_WAITING_FOR_IDLE;
-        if (repeatCounter <= (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110.25ms of the last message
+        if (repeatCounter < (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110.25ms of the last message
           repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
           if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
             nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
@@ -212,6 +213,8 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_REPEAT_PROCESS:
+    // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
+    // doesn't really matter, because the repeat timeout needs to have a margin of error
     state = NECIR_STATE_WAITING_FOR_IDLE;
     NECIR_EnqueueIfNotFull(message, true); // if there is room on the queue, put the decoded message on it, otherwise drop the message
     break;
@@ -254,6 +257,8 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
+    // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
+    // doesn't really matter, because the repeat timeout needs to have a margin of error
     state = NECIR_STATE_WAITING_FOR_IDLE;
     NECIR_EnqueueIfNotFull(message, false); // if there is room on the queue, put the decoded message on it, otherwise drop the message
     break;

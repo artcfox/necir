@@ -29,15 +29,15 @@ NECIR_QUEUE_LENGTH = 16
 #
 # 0 = Use the standard NEC protocol
 # 1 = Use the extended NEC protocol (Required for Adafruit Mini IR Remote)
-NECIR_USE_EXTENDED_PROTOCOL = 0
+NECIR_USE_EXTENDED_PROTOCOL = 1
 
 # NECIR_DELAY_UNTIL_REPEAT defines how many repeats at the native
 # repeat interval of the IR remote (108ms) are skipped before emitting
 # the first repeat, after which the repeats will be emitted every
 # NECIR_REPEAT_INTERVAL * 108ms
 #
-NECIR_DELAY_UNTIL_REPEAT = 3
-NECIR_REPEAT_INTERVAL = 2
+NECIR_DELAY_UNTIL_REPEAT = 6
+NECIR_REPEAT_INTERVAL = 3
 
 # NECIR_TURBO_MODE_AFTER defines how many repeats at the
 # NECIR_REPEAT_INTERVAL interval (repeats actually emitted by this
@@ -53,7 +53,7 @@ NECIR_REPEAT_INTERVAL = 2
 # NECIR_TURBO_REPEAT_INTERVAL
 # 1-255 = Turbo repeats occur at this multiple of 108 ms.
 #
-NECIR_TURBO_MODE_AFTER = 2
+NECIR_TURBO_MODE_AFTER = 0
 NECIR_TURBO_REPEAT_INTERVAL = 1
 
 # This defines which pin the IR receiver is connected to:
