@@ -17,7 +17,7 @@ NECIR_ISR_CTC_TIMER = 0
 #
 # Note: NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two
 #       are strongly preferred.
-NECIR_QUEUE_LENGTH = 16
+NECIR_QUEUE_LENGTH = 8
 
 # The NEC IR standard specifies a 32-bit message, sent LSB-first with
 # the first 8-bits being an address, followed by the 8-bit inverse of
