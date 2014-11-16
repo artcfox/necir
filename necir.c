@@ -40,7 +40,7 @@
 // Only call this macro with a constant, otherwise it will pull in floating point math, rather than compile the entire thing down to a constant
 #define samplesFromMilliseconds(ms) ((ms)/((float)(NECIR_CTC_TOP + 1) * 256 * 1000 / F_CPU))
 
-const uint8_t oneLeftShiftedBy[8] PROGMEM = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
+const uint8_t NECIR_oneLeftShiftedBy[8] PROGMEM = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
@@ -159,7 +159,7 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_WAITING_FOR_IDLE: // IR was low, waiting for high
     ++repeatCounter;
     if (sample) {// if high now, switch to idle state
-      repeatFlagBit = pgm_read_byte(&oneLeftShiftedBy[NECIR_tail % 8]); // pre-cache to minimize execution time of the most expensive state
+      repeatFlagBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[NECIR_tail % 8]); // pre-cache to minimize execution time of the most expensive state
       state = NECIR_STATE_IDLE;
     }
     break;
@@ -232,7 +232,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
         stateCounter = 0;
-        messageBit = pgm_read_byte(&oneLeftShiftedBy[bitCounter % 8]);
+        messageBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[bitCounter % 8]);
         state = NECIR_STATE_BIT_PAUSE;
       }
     }

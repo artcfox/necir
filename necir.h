@@ -48,7 +48,7 @@
 
 #define NELEMS(x) (sizeof(x)/sizeof(x[0]))
 
-extern const uint8_t oneLeftShiftedBy[8] PROGMEM; // avoids having to bit shift by a variable amount
+extern const uint8_t NECIR_oneLeftShiftedBy[8] PROGMEM; // avoids having to bit shift by a variable amount
 
 #if (NECIR_USE_EXTENDED_PROTOCOL)
 #define necir_message_t uint32_t
@@ -79,7 +79,7 @@ static inline uint8_t NECIR_QueueEmpty(void) {
 static inline void NECIR_Dequeue(necir_message_t *message, bool *isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_Dequeue(necir_message_t *message, bool *isRepeat) {
   *message = NECIR_messageQueue[NECIR_head];
-  *isRepeat = NECIR_repeatFlagQueue[NECIR_head / 8] & pgm_read_byte(&oneLeftShiftedBy[NECIR_head % 8]);
+  *isRepeat = NECIR_repeatFlagQueue[NECIR_head / 8] & pgm_read_byte(&NECIR_oneLeftShiftedBy[NECIR_head % 8]);
   NECIR_head = (NECIR_head + 1) % NELEMS(NECIR_messageQueue);
 }
 
