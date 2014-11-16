@@ -40,7 +40,7 @@
 // Only call this macro with a constant, otherwise it will pull in floating point math, rather than compile the entire thing down to a constant
 #define samplesFromMilliseconds(ms) ((ms)/((float)(NECIR_CTC_TOP + 1) * 256 * 1000 / F_CPU))
 
-const uint8_t oneLeftShiftedBy[8] = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
+const uint8_t oneLeftShiftedBy[8] PROGMEM = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
@@ -49,6 +49,8 @@ volatile necir_message_t NECIR_messageQueue[NECIR_QUEUE_LENGTH];
 volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 uint8_t NECIR_head; // initialized to zero by default
 volatile uint8_t NECIR_tail; // initialized to zero by default
+
+static uint8_t repeatFlagBit; // we pre-calculate this value in the WAITING_FOR_IDLE state, so the PROCESS states can execute faster
 
 static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) __attribute__(( always_inline ));
 static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
@@ -69,9 +71,9 @@ static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
       return; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
     if (isRepeat)
-      NECIR_repeatFlagQueue[tail / 8] |= oneLeftShiftedBy[tail % 8];
+      NECIR_repeatFlagQueue[tail / 8] |= repeatFlagBit;
     else
-      NECIR_repeatFlagQueue[tail / 8] &= oneLeftShiftedBy[tail % 8] ^ 0xFF;
+      NECIR_repeatFlagQueue[tail / 8] &= repeatFlagBit ^ 0xFF;
     NECIR_tail = (tail + 1) % NELEMS(NECIR_messageQueue);
   }
 }
@@ -127,7 +129,7 @@ ISR(TIMER2_COMPA_vect)
 
   static uint8_t stateCounter; // stores the number of times we have sampled the state minus one
   static uint8_t bitCounter; // keeps track of how many bits we've currently decoded
-
+  static uint8_t messageBit; // we pre-calculate this value in the BIT_LEADER state, so the BIT_PAUSE state can execute faster
   /*
     A counter `repeatCounter' is needed to detect when a repeat code
     should no longer be accepted. Without this variable and its
@@ -156,8 +158,10 @@ ISR(TIMER2_COMPA_vect)
   switch (state) {
   case NECIR_STATE_WAITING_FOR_IDLE: // IR was low, waiting for high
     ++repeatCounter;
-    if (sample) // if high now, switch to idle state
+    if (sample) {// if high now, switch to idle state
+      repeatFlagBit = pgm_read_byte(&oneLeftShiftedBy[NECIR_tail % 8]); // pre-cache to minimize execution time of the most expensive state
       state = NECIR_STATE_IDLE;
+    }
     break;
   case NECIR_STATE_IDLE: // IR was high, waiting for low
     ++repeatCounter;
@@ -228,6 +232,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
         stateCounter = 0;
+        messageBit = pgm_read_byte(&oneLeftShiftedBy[bitCounter % 8]);
         state = NECIR_STATE_BIT_PAUSE;
       }
     }
@@ -242,7 +247,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
         break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
-        message[bitCounter / 8] |= oneLeftShiftedBy[bitCounter % 8]; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
+        message[bitCounter / 8] |= messageBit; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
         nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
