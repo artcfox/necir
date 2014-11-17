@@ -230,7 +230,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
         stateCounter = 0;
-        messageBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[bitCounter % 8]); // pre-calculate in case this bit ends up being a 1, so the BIT_PAUSE state can run faster
+        messageBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[bitCounter % 8]); // pre-calculate in case this bit ends up being a 1
         state = NECIR_STATE_BIT_PAUSE;
       }
     }
