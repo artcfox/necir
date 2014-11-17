@@ -145,8 +145,7 @@ ISR(TIMER2_COMPA_vect)
     16-bit variable.
   */
   static uint16_t repeatCounter; // zeroed after 32-bits have been received, and every time a repeat code has been seen
-  static uint8_t nativeRepeatsSeen; // counts the number of native repeat messages seen, because the repeats we issue will be a multiple of this number
-  static uint8_t nativeRepeatsNeeded; // when nativeRepeatsSeen counts up to this value, then we actually issue a repeat
+  static uint8_t nativeRepeatsNeeded; // counts down the number of native repeat messages seen, when zero, emits a repeat to the application
 #if (NECIR_TURBO_MODE_AFTER != 0)
   static uint8_t turboModeCounter;
 #endif // NECIR_TURBO_MODE_AFTER
@@ -201,8 +200,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_WAITING_FOR_IDLE;
         if (repeatCounter < (uint16_t)samplesFromMilliseconds(110.25) + 1) { // make sure the repeat code came within 110.25ms of the last message
           repeatCounter = 0; // reset the repeat timeout counter so it can be used for additional repeat messages
-          if (++nativeRepeatsSeen == nativeRepeatsNeeded) { // have we seen enough native repeat messages to pass one back to the application? 
-            nativeRepeatsSeen = 0; // reset the counter so we can begin counting for the next repeat message
+          if (--nativeRepeatsNeeded == 0) { // have we seen enough native repeat messages to pass one back to the application? 
             nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
 #if (NECIR_TURBO_MODE_AFTER != 0)
             if (++turboModeCounter == NECIR_TURBO_MODE_AFTER) { // have we repeated enough to activate turbo mode?
@@ -232,7 +230,7 @@ ISR(TIMER2_COMPA_vect)
         state = NECIR_STATE_IDLE; // was not low for long enough, switch to idle state
       else  { // was low for 562.5uS, switch to bit pause state
         stateCounter = 0;
-        messageBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[bitCounter % 8]);
+        messageBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[bitCounter % 8]); // pre-calculate in case this bit ends up being a 1, so the BIT_PAUSE state can run faster
         state = NECIR_STATE_BIT_PAUSE;
       }
     }
@@ -249,7 +247,6 @@ ISR(TIMER2_COMPA_vect)
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
         message[bitCounter / 8] |= messageBit; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
       if (++bitCounter > 31) {
-        nativeRepeatsSeen = 0; // initialize repeat counters
 #if (NECIR_TURBO_MODE_AFTER != 0)
         turboModeCounter = 0;
 #endif // NECIR_TURBO_MODE_AFTER
