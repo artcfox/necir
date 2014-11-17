@@ -50,10 +50,8 @@ volatile uint8_t NECIR_repeatFlagQueue[NECIR_REPEAT_QUEUE_BYTES];
 uint8_t NECIR_head; // initialized to zero by default
 volatile uint8_t NECIR_tail; // initialized to zero by default
 
-static uint8_t repeatFlagBit; // we pre-calculate this value in the WAITING_FOR_IDLE state, so the PROCESS states can execute faster
-
-static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) __attribute__(( always_inline ));
-static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
+static inline bool NECIR_EnqueueMessageIfNotFull(uint8_t *message) __attribute__(( always_inline ));
+static inline bool NECIR_EnqueueMessageIfNotFull(uint8_t *message) {
   uint8_t tail = NECIR_tail; // cache volatile NECIR_tail, since this function is only ever called from inside the ISR
   if (NECIR_head != (tail + 1) % NELEMS(NECIR_messageQueue)) { // same as if (!NECIR_QueueFull()) ... but uses cached tail
 #if (NECIR_USE_EXTENDED_PROTOCOL)
@@ -68,14 +66,22 @@ static inline void NECIR_EnqueueIfNotFull(uint8_t *message, bool isRepeat) {
       *p++ = message[2]; // faster than: NECIR_messageQueue[tail] =
       *p = message[0];   //                ((uint16_t)message[0] << 8) | message[2];
     } else
-      return; // validation failed, drop the message
+      return false; // validation failed, drop the message
 #endif // NECIR_USE_EXTENDED_PROTOCOL
-    if (isRepeat)
-      NECIR_repeatFlagQueue[tail / 8] |= repeatFlagBit;
-    else
-      NECIR_repeatFlagQueue[tail / 8] &= repeatFlagBit ^ 0xFF;
-    NECIR_tail = (tail + 1) % NELEMS(NECIR_messageQueue);
+    return true;
   }
+  return false;
+}
+
+// This method doesn't check if the queue is full, so it should only be called if NECIR_EnqueueMessageIfNotFull() returns true
+static inline void NECIR_EnqueueRepeat(bool isRepeat) __attribute__(( always_inline ));
+static inline void NECIR_EnqueueRepeat(bool isRepeat) {
+  uint8_t tail = NECIR_tail; // cache volatile NECIR_tail, since this function is only ever called from inside the ISR
+  if (isRepeat)
+    NECIR_repeatFlagQueue[tail / 8] |= pgm_read_byte(&NECIR_oneLeftShiftedBy[tail % 8]);
+  else
+    NECIR_repeatFlagQueue[tail / 8] &= pgm_read_byte(&NECIR_oneLeftShiftedBy[tail % 8]) ^ 0xFF;
+  NECIR_tail = (tail + 1) % NELEMS(NECIR_messageQueue);
 }
 
 void NECIR_Init(void)
@@ -125,7 +131,8 @@ ISR(TIMER2_COMPA_vect)
   static enum { NECIR_STATE_WAITING_FOR_IDLE, NECIR_STATE_IDLE,
                 NECIR_STATE_LEADER, NECIR_STATE_PAUSE,
                 NECIR_STATE_BIT_LEADER, NECIR_STATE_BIT_PAUSE,
-                NECIR_STATE_PROCESS, NECIR_STATE_REPEAT_PROCESS } state;
+                NECIR_STATE_PROCESS, NECIR_STATE_PROCESS2,
+                NECIR_STATE_REPEAT_PROCESS, NECIR_STATE_REPEAT_PROCESS2 } state;
 
   static uint8_t stateCounter; // stores the number of times we have sampled the state minus one
   static uint8_t bitCounter; // keeps track of how many bits we've currently decoded
@@ -158,7 +165,6 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_WAITING_FOR_IDLE: // IR was low, waiting for high
     ++repeatCounter;
     if (sample) {// if high now, switch to idle state
-      repeatFlagBit = pgm_read_byte(&NECIR_oneLeftShiftedBy[NECIR_tail % 8]); // pre-cache to minimize execution time of the most expensive state
       state = NECIR_STATE_IDLE;
     }
     break;
@@ -217,8 +223,14 @@ ISR(TIMER2_COMPA_vect)
   case NECIR_STATE_REPEAT_PROCESS:
     // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
     // doesn't really matter, because the repeat timeout needs to have a margin of error
+    if (NECIR_EnqueueMessageIfNotFull(message)) // if there is room on the queue, put the decoded message on it, otherwise drop the message
+      state = NECIR_STATE_REPEAT_PROCESS2;
+    else
+      state = NECIR_STATE_WAITING_FOR_IDLE;
+    break;
+  case NECIR_STATE_REPEAT_PROCESS2:
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    NECIR_EnqueueIfNotFull(message, true); // if there is room on the queue, put the decoded message on it, otherwise drop the message
+    NECIR_EnqueueRepeatIfNotFull(true);
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     ++repeatCounter;
@@ -246,23 +258,29 @@ ISR(TIMER2_COMPA_vect)
         break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(0.5625) + 1) // was high for longer than a 0-bit, so it's a 1-bit
         message[bitCounter / 8] |= messageBit; // faster than "uint32_t message |= ((uint32_t)1 << bitCounter)"
-      if (++bitCounter > 31) {
-#if (NECIR_TURBO_MODE_AFTER != 0)
-        turboModeCounter = 0;
-#endif // NECIR_TURBO_MODE_AFTER
-        nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
-        state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
-      } else {
+      if (++bitCounter < 32) {
         stateCounter = 0;
         state = NECIR_STATE_BIT_LEADER;
+      } else {
+        state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
       }
     }
     break;
   case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
     // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
     // doesn't really matter, because the repeat timeout needs to have a margin of error
+#if (NECIR_TURBO_MODE_AFTER != 0)
+    turboModeCounter = 0;
+#endif // NECIR_TURBO_MODE_AFTER
+    nativeRepeatsNeeded = NECIR_DELAY_UNTIL_REPEAT; // set "delay until repeat" length
+    if (NECIR_EnqueueMessageIfNotFull(message)) // if there is room on the queue, put the decoded message on it, otherwise drop the message
+      state = NECIR_STATE_PROCESS2;
+    else
+      state = NECIR_STATE_WAITING_FOR_IDLE;
+    break;
+  case NECIR_STATE_PROCESS2:
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    NECIR_EnqueueIfNotFull(message, false); // if there is room on the queue, put the decoded message on it, otherwise drop the message
+    NECIR_EnqueueRepeatIfNotFull(false);
     break;
   }
 }
