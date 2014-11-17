@@ -230,7 +230,7 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_REPEAT_PROCESS2:
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    NECIR_EnqueueRepeatIfNotFull(true);
+    NECIR_EnqueueRepeat(true);
     break;
   case NECIR_STATE_BIT_LEADER: // IR was low, needs to be low for 562.5uS
     ++repeatCounter;
@@ -248,7 +248,8 @@ ISR(TIMER2_COMPA_vect)
     }
     break;
   case NECIR_STATE_BIT_PAUSE: // IR was high, needs to be high for either 562.5uS (0-bit) or 1.6875ms (1-bit)
-    ++repeatCounter;
+    // Skip incrementing repeatCounter here to save time. Not incrementing it a few times
+    // doesn't really matter, because the repeat timeout needs to have a margin of error
     if (sample) { // if high now, make sure it hasn't been high for too long
       if (++stateCounter > (uint8_t)samplesFromMilliseconds(1.6875) + 1)
         state = NECIR_STATE_IDLE; // high for too long, switch to idle state
@@ -261,9 +262,8 @@ ISR(TIMER2_COMPA_vect)
       if (++bitCounter < 32) {
         stateCounter = 0;
         state = NECIR_STATE_BIT_LEADER;
-      } else {
+      } else
         state = NECIR_STATE_PROCESS; // keep the maximum execution time of the ISR down by enqueueing the message in a new state
-      }
     }
     break;
   case NECIR_STATE_PROCESS: // At this point 'message' contains a 32-bit value representing the raw bits received
@@ -280,7 +280,7 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_PROCESS2:
     state = NECIR_STATE_WAITING_FOR_IDLE;
-    NECIR_EnqueueRepeatIfNotFull(false);
+    NECIR_EnqueueRepeat(false);
     break;
   }
 }
