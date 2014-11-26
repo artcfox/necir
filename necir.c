@@ -72,11 +72,11 @@ static inline bool NECIR_EnqueueMessageIfNotFull(uint8_t *message) {
       *p++ = message[2]; // faster than: NECIR_messageQueue[tail] =
       *p = message[0];   //                ((uint16_t)message[0] << 8) | message[2];
     } else
-      return false; // validation failed, drop the message
+      return false; // validation failed, we dropped the message, do not call NECIR_EnqueueRepeat()
 #endif // NECIR_USE_EXTENDED_PROTOCOL
-    return true;
+    return true; // return success, NECIR_EnqueueRepeat() should be called
   }
-  return false;
+  return false; // the queue was full, we dropped the message, do not call NECIR_EnqueueRepeat()
 }
 
 // This method doesn't check if the queue is full, so it should only be called if NECIR_EnqueueMessageIfNotFull() returns true
