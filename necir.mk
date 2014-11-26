@@ -7,6 +7,19 @@
 #  2 = 8-bit Timer/Counter2
 NECIR_ISR_CTC_TIMER = 0
 
+# Determines whether or not GPIOR0 is used to store flags. This special-purpose
+# register is designed to store bit flags, as it can set, clear or test a
+# single bit in only 2 clock cycles.
+#
+# Note: If enabled, you must make sure that the flag bits assigned below do not
+#       conflict with any other GPIOR0 flag bits your application might use.
+NECIR_USE_GPIOR0 = 1
+
+# GPIOR0 flag bits used
+ifeq ($(NECIR_USE_GPIOR0), 1)
+NECIR_FLAG_REPEAT_TIMEOUT = 3
+endif
+
 # NEC IR messages are decoded in real-time by the interrupt routine,
 # and are placed into a queue where the main() routine can fetch them.
 # NECIR_QUEUE_LENGTH defines the length of this queue, and thus the
@@ -62,10 +75,16 @@ IR_PORT = PORTB
 IR_INPUT = PINB
 IR_PIN = PB3
 
+# This avoids adding needless defines if TLC5940_USE_GPIOR0 = 0
+ifeq ($(NECIR_USE_GPIOR0), 1)
+NECIR_GPIOR0_DEFINES = -DNECIR_FLAG_REPEAT_TIMEOUT=$(NECIR_FLAG_REPEAT_TIMEOUT)
+endif
+
 # This line integrates all NECIR-related defines into a single flag called:
 #     $(NECIR_DEFINES)
 # which should be appended to the definition of COMPILE below
 NECIR_DEFINES = -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
+                -DNECIR_USE_GPIOR0=$(NECIR_USE_GPIOR0) \
                 -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
                 -DNECIR_USE_EXTENDED_PROTOCOL=$(NECIR_USE_EXTENDED_PROTOCOL) \
                 -DNECIR_DELAY_UNTIL_REPEAT=$(NECIR_DELAY_UNTIL_REPEAT) \
@@ -75,6 +94,7 @@ NECIR_DEFINES = -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
                 -DIR_DDR=$(IR_DDR) \
                 -DIR_PORT=$(IR_PORT) \
                 -DIR_INPUT=$(IR_INPUT) \
-                -DIR_PIN=$(IR_PIN)
+                -DIR_PIN=$(IR_PIN) \
+                $(NECIR_GPIOR0_DEFINES)
 
 # ---------- End NECIR Configuration Section ----------
