@@ -52,8 +52,29 @@ volatile uint8_t NECIR_tail; // initialized to zero by default
 
 #if (NECIR_USE_GPIOR0)
 #define NECIR_FLAGS GPIOR0
+static inline void NECIR_SetRepeatTimeoutFlag(void) __attribute__(( always_inline ));
+static inline void NECIR_SetRepeatTimeoutFlag(void) {
+  setHigh(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT);
+}
+static inline void NECIR_ClearRepeatTimeoutFlag(void) __attribute__(( always_inline ));
+static inline void NECIR_ClearRepeatTimeoutFlag(void) {
+  setLow(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT);
+}
+static inline bool NECIR_GetRepeatTimeoutFlag (void) __attribute__(( always_inline ));
+static inline bool NECIR_GetRepeatTimeoutFlag (void) {
+  return getValue(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT);
+}
 #else // NECIR_USE_GPIOR0
-uint8_t NECIR_repeatTimeoutFlag;
+bool NECIR_repeatTimeoutFlag;
+static inline void NECIR_SetRepeatTimeoutFlag(void) {
+  NECIR_repeatTimeoutFlag = true;
+}
+static inline void NECIR_ClearRepeatTimeoutFlag(void) {
+  NECIR_repeatTimeoutFlag = false;
+}
+static inline bool NECIR_GetRepeatTimeoutFlag (void) {
+  return NECIR_repeatTimeoutFlag;
+}
 #endif // NECIR_USE_GPIOR0
 
 static inline bool NECIR_EnqueueMessageIfNotFull(uint8_t *message) __attribute__(( always_inline ));
@@ -124,12 +145,8 @@ void NECIR_Init(void)
 #error "NECIR_ISR_CTC_TIMER must be 0 or 2"
 #endif // NECIR_ISR_CTC_TIMER
 
- // Disallow repeats until a valid command has been seen
-#if (NECIR_USE_GPIOR0)
-  setHigh(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT);
-#else
-  NECIR_repeatTimeoutFlag = 1;
-#endif
+  // Disallow repeats until a valid command has been seen
+  NECIR_SetRepeatTimeoutFlag();
 }
 
 // This interrupt will get called every (NECIR_CTC_TOP + 1)*256 clock cycles
@@ -167,13 +184,8 @@ ISR(TIMER2_COMPA_vect)
     break;
   case NECIR_STATE_IDLE: // IR was high, waiting for low
     // If we haven't hit the timeout for when we no longer accept repeats yet, decrement the timeout counter and check
-#if (NECIR_USE_GPIOR0)
-    if (!getValue(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT) && --repeatTimeout == 0)
-      setHigh(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT);
-#else // NECIR_USE_GPIOR0
-    if (!NECIR_repeatTimeoutFlag && --repeatTimeout == 0)
-      NECIR_repeatTimeoutFlag = 1;
-#endif // NECIR_USE_GPIOR0
+    if (!NECIR_GetRepeatTimeoutFlag() && --repeatTimeout == 0)
+      NECIR_SetRepeatTimeoutFlag();
     if (!sample) { // if low now, reset the counter, and switch to leader state
       stateCounter = 0;
       state = NECIR_STATE_LEADER;
@@ -202,21 +214,12 @@ ISR(TIMER2_COMPA_vect)
         break;
       } else if (stateCounter > (uint8_t)samplesFromMilliseconds(2.25) + 1) { // was high for longer than a repeat code, so switch to bit leader state
         repeatTimeout = (uint16_t)samplesFromMilliseconds(98.1875) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats)
-#if (NECIR_USE_GPIOR0)
-        setLow(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT); // allow repeat codes
-#else // NECIR_USE_GPIOR0
-        NECIR_repeatTimeoutFlag = 0;
-#endif // NECIR_USE_GPIOR0
+        NECIR_ClearRepeatTimeoutFlag(); // allow repeat codes
         stateCounter = bitCounter = message[0] = message[1] = message[2] = message[3] = 0;
         state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
         state = NECIR_STATE_WAITING_FOR_IDLE;
-#if (NECIR_USE_GPIOR0)
-        if (!getValue(NECIR_FLAGS, NECIR_FLAG_REPEAT_TIMEOUT)) // are repeat codes are still allowed for this command?
-#else // NECIR_USE_GPIOR0
-        if (!NECIR_repeatTimeoutFlag)
-#endif // NECIR_USE_GPIOR0
-        {
+        if (!NECIR_GetRepeatTimeoutFlag()) { // are repeat codes are still allowed for this command?
           repeatTimeout = (uint16_t)samplesFromMilliseconds(98.1875) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats)
           if (--nativeRepeatsNeeded == 0) { // have we seen enough native repeat messages to pass one back to the application? 
             nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
