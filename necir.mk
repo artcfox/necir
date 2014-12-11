@@ -75,7 +75,7 @@ IR_PORT = PORTB
 IR_INPUT = PINB
 IR_PIN = PB3
 
-# This avoids adding needless defines if TLC5940_USE_GPIOR0 = 0
+# This avoids adding needless defines if NECIR_USE_GPIOR0 = 0
 ifeq ($(NECIR_USE_GPIOR0), 1)
 NECIR_GPIOR0_DEFINES = -DNECIR_FLAG_REPEAT_TIMEOUT=$(NECIR_FLAG_REPEAT_TIMEOUT)
 endif

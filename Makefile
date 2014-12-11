@@ -17,9 +17,9 @@
 #CLOCK      = 30000000
 #CLOCK      = 20000000
 #CLOCK      = 18432000
-#CLOCK      = 16000000
+CLOCK      = 16000000
 #CLOCK      = 8000000
-CLOCK      = 1000000
+#CLOCK      = 1000000
 PROGRAMMER = -c avrispmkII -P usb
 OBJECTS    = main.o necir.o
 
@@ -45,7 +45,7 @@ OBJECTS    = main.o necir.o
 
 DEVICE     = attiny85
 # ATtiny85 - Default setting
-FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0x62:m
+#FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0x62:m
 # ATtiny85 - Enable clock output
 #FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0x22:m
 # ATtiny85 - Remove clock divider
@@ -53,9 +53,9 @@ FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0x62:m
 # ATtiny85 - Remove clock divider, enable clock output
 #FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0xa2:m
 # ATtiny85- Remove clock divider, set PLL Clock
-#FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
+FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0xe1:m
 # ATtiny85 - Remove clock divider, set PLL Clock, enable clock output
-##FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0xa1:m
+#FUSES      = -U hfuse:w:0xdf:m -U lfuse:w:0xa1:m
 # ATtiny85 - Remove clock divider, set PLL Clock, enable clock output, BOD 2.7 V
 #FUSES      = -U hfuse:w:0xdd:m -U lfuse:w:0xa1:m
 

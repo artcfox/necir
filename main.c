@@ -20,8 +20,10 @@ int main(void)
   necir_message_t message; // stores the decoded message
   bool isRepeat; // whether the message is a repeat message or not
 
+ /*  LED_INPUT = (1 << LED_PIN); */
  /* loop: */
- /*  asm volatile ("sbi 0x16,4" "\n\t" ::); */
+ /*  __asm__ volatile ("out 0x16,r24" "\n\t" ::); */
+ /*  //asm volatile ("sbi 0x16,4" "\n\t" ::); */
  /*  goto loop; */
 
   for (;;) {

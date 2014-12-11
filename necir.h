@@ -51,9 +51,9 @@
 extern const uint8_t NECIR_oneLeftShiftedBy[8] PROGMEM; // avoids having to bit shift by a variable amount
 
 #if (NECIR_USE_EXTENDED_PROTOCOL)
-#define necir_message_t uint32_t
+typedef uint32_t necir_message_t;
 #else // NECIR_USE_EXTENDED_PROTOCOL
-#define necir_message_t uint16_t
+typedef uint16_t necir_message_t;
 #endif // NECIR_USE_EXTENDED_PROTOCOL
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
