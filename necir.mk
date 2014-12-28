@@ -75,6 +75,10 @@ IR_PORT = PORTB
 IR_INPUT = PINB
 IR_PIN = PB3
 
+# ---------- End NECIR Configuration Section ----------
+
+# ---------- DO NOT MODIFY BELOW THIS LINE ----------
+
 # This avoids adding needless defines if NECIR_USE_GPIOR0 = 0
 ifeq ($(NECIR_USE_GPIOR0), 1)
 NECIR_GPIOR0_DEFINES = -DNECIR_FLAG_REPEAT_TIMEOUT=$(NECIR_FLAG_REPEAT_TIMEOUT)
@@ -96,5 +100,3 @@ NECIR_DEFINES = -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
                 -DIR_INPUT=$(IR_INPUT) \
                 -DIR_PIN=$(IR_PIN) \
                 $(NECIR_GPIOR0_DEFINES)
-
-# ---------- End NECIR Configuration Section ----------

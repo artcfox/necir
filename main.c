@@ -20,19 +20,32 @@ int main(void)
   necir_message_t message; // stores the decoded message
   bool isRepeat; // whether the message is a repeat message or not
 
+  // The following block of code is used for profiling the execution
+  // time of the interrupt using a logic analyzer. The inline asm is
+  // to work around a compiler bug that inserts two 'out' instructions
+  // before looping, which causes the duty-cycle of the square wave to
+  // not be 50%. Check the disassembly to make sure both the memory
+  // location and register used in the inline assembly match the
+  // memory location and register used in the statement above the
+  // loop.
+
  /*  LED_INPUT = (1 << LED_PIN); */
  /* loop: */
  /*  __asm__ volatile ("out 0x16,r24" "\n\t" ::); */
- /*  //asm volatile ("sbi 0x16,4" "\n\t" ::); */
  /*  goto loop; */
 
   for (;;) {
-    // Uncomment the following line to see how long it takes the ISR to execute in its various states
-    /* while (1) setHigh(LED_INPUT, LED_PIN); */
-
     // Process all queued NEC IR events
     while (!NECIR_QueueEmpty()) {
       NECIR_Dequeue(&message, &isRepeat);
+
+      // In a typical application, you will choose to either support
+      // the normal NECIR protocol, or the extended NECIR protocol, so
+      // you won't need the following set of conditionals that support
+      // both.
+      //
+      // Keep in mind that in order to support the Adafruit Mini IR
+      // Remote, you must use the extended NECIR protocol.
 
 #if (NECIR_USE_EXTENDED_PROTOCOL)
       if (message == 0x04FB08F7 && !isRepeat) // disallow repeat for power button

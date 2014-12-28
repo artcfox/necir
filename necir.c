@@ -45,7 +45,8 @@
 // Only call this macro with a constant, otherwise it won't compile down to a constant!
 #define NUM_SAMPLES_IN_MS(ms) ((ms) / ((float)(NECIR_CTC_TOP + 1) * NECIR_CTC_PRESCALE * 1000 / F_CPU))
 
-const uint8_t NECIR_oneLeftShiftedBy[8] PROGMEM = {1, 2, 4, 8, 16, 32, 64, 128}; // avoids having to bit shift by a variable amount, always runs in constant time
+// Avoids having to bit shift by a variable amount; always runs in constant time
+const uint8_t NECIR_oneLeftShiftedBy[8] PROGMEM = {1, 2, 4, 8, 16, 32, 64, 128};
 
 #if ((NECIR_QUEUE_LENGTH <= 0) || NECIR_QUEUE_LENGTH > 256)
 #error "NECIR_QUEUE_LENGTH must be between 1 and 256, powers of two strongly preferred"
@@ -104,7 +105,7 @@ static inline bool NECIR_EnqueueMessageIfNotFull(uint8_t *message) {
     } else
       return false; // validation failed, we dropped the message, do not call NECIR_EnqueueRepeat()
 #endif // NECIR_USE_EXTENDED_PROTOCOL
-    return true; // return success, NECIR_EnqueueRepeat() should be called next
+    return true; // return success, NECIR_EnqueueRepeat() needs to be called next
   }
   return false; // the queue was full, we dropped the message, do not call NECIR_EnqueueRepeat()
 }
