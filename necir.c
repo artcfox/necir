@@ -225,14 +225,14 @@ ISR(NECIR_TIMER_COMPA_vect)
         state = NECIR_STATE_WAITING_FOR_IDLE; // was not high for long enough, switch to wait for idle state
         break;
       } else if (stateCounter > (uint8_t)NUM_SAMPLES_IN_MS(2.25) + 1) { // was high for longer than a repeat code, so switch to bit leader state
-        repeatTimeout = (uint16_t)NUM_SAMPLES_IN_MS(98.1875) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats)
+        repeatTimeout = (uint16_t)NUM_SAMPLES_IN_MS(110) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats) + leeway
         NECIR_ClearRepeatTimeoutFlag(); // since we are receiving a new message, allow repeat codes
         stateCounter = bitCounter = message[0] = message[1] = message[2] = message[3] = 0;
         state = NECIR_STATE_BIT_LEADER;
       } else { // was a repeat code
         state = NECIR_STATE_WAITING_FOR_IDLE;
         if (!NECIR_GetRepeatTimeoutFlag()) { // are repeat codes are still allowed for this command?
-          repeatTimeout = (uint16_t)NUM_SAMPLES_IN_MS(98.1875) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats)
+          repeatTimeout = (uint16_t)NUM_SAMPLES_IN_MS(110) + 1; // initialize to 110 - 9.0 - 2.25 - 0.5625 ms (idle time between repeats) + leeway
           if (--nativeRepeatsNeeded == 0) { // have we seen enough native repeat messages to pass one back to the application? 
             nativeRepeatsNeeded = NECIR_REPEAT_INTERVAL; // "delay until repeat" has been satisfied, so now we set the repeat interval
 #if (NECIR_TURBO_MODE_AFTER != 0)
