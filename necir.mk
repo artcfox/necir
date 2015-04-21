@@ -86,7 +86,7 @@ endif
 
 # This line integrates all NECIR-related defines into a single flag called:
 #     $(NECIR_DEFINES)
-# which should be appended to the definition of COMPILE below
+# which should be appended to the definition of COMPILE in the Makefile
 NECIR_DEFINES = -DNECIR_ISR_CTC_TIMER=$(NECIR_ISR_CTC_TIMER) \
                 -DNECIR_USE_GPIOR0=$(NECIR_USE_GPIOR0) \
                 -DNECIR_QUEUE_LENGTH=$(NECIR_QUEUE_LENGTH) \
